@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+agenda.db
+.agents/
+descargas excel agenda/

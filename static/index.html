@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda & Gestión 2.0 - Software FM</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=32">
+</head>
+<body>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="brand">
+            <div class="brand-logo">FM</div>
+            <h1 class="brand-name">Agenda & Gestión <span>2.0</span></h1>
+        </div>
+        
+        <div class="header-controls">
+            <button id="btn-nuevo-trabajo" class="btn btn-primary">
+                <span>➕</span> Nuevo Trabajo
+            </button>
+            <button id="btn-nueva-tarea" class="btn btn-success">
+                <span>📝</span> Nueva Gestión
+            </button>
+            <button id="btn-nueva-actividad" class="btn btn-warning" style="background-color: #f59e0b; border-color: #f59e0b; color: white;">
+                <span>📌</span> Nueva Actividad
+            </button>
+            <a href="/api/exportar/excel" class="btn btn-secondary" id="btn-exportar">
+                <span>📥</span> Exportar Excel
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+
+        <!-- KPI Row -->
+        <div class="kpi-container">
+            <div class="kpi-card interactive" id="kpi-total-trabajos">
+                <div class="kpi-info">
+                    <h3>Total Tarjetas</h3>
+                    <div class="kpi-value" id="val-total-trabajos">0</div>
+                </div>
+                <div class="kpi-icon-wrapper teal">💼</div>
+            </div>
+            <div class="kpi-card interactive" id="kpi-tareas-pendientes">
+                <div class="kpi-info">
+                    <h3>Gestiones Pendientes</h3>
+                    <div class="kpi-value" id="val-tareas-pendientes">0</div>
+                </div>
+                <div class="kpi-icon-wrapper orange">⏳</div>
+            </div>
+            <div class="kpi-card interactive" id="kpi-tareas-completadas">
+                <div class="kpi-info">
+                    <h3>Gestiones Completadas</h3>
+                    <div class="kpi-value" id="val-tareas-completadas">0</div>
+                </div>
+                <div class="kpi-icon-wrapper green">✓</div>
+            </div>
+            <div class="kpi-card interactive" id="kpi-todos-pendientes">
+                <div class="kpi-info">
+                    <h3>Actividades Pendientes</h3>
+                    <div class="kpi-value" id="val-todos-pendientes">0</div>
+                </div>
+                <div class="kpi-icon-wrapper blue">📌</div>
+            </div>
+        </div>
+
+        <!-- Dashboard Layout -->
+        <div class="dashboard-grid">
+            
+            <!-- Left/Center: Calendar Panel -->
+            <div class="panel calendar-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">📅 Calendario de Actividades</h2>
+                    <!-- Pestañas de Vistas -->
+                    <div class="calendar-views-tabs">
+                        <button id="view-month" class="view-tab active">Mes</button>
+                        <button id="view-week" class="view-tab">Semana</button>
+                        <button id="view-day" class="view-tab">Día</button>
+                        <button id="view-cards" class="view-tab">🔍 Buscar Tarjetas</button>
+                    </div>
+                    <div class="calendar-controls" id="calendar-controls-wrapper">
+                        <button id="cal-prev-month" class="btn-cal-nav">◀</button>
+                        <span id="cal-current-month" class="cal-month-title">Julio 2026</span>
+                        <button id="cal-next-month" class="btn-cal-nav">▶</button>
+                    </div>
+                </div>
+                
+                <div class="calendar-wrapper" id="calendar-view-container">
+                    <!-- Weekdays -->
+                    <div class="calendar-weekdays">
+                        <div>Lunes</div>
+                        <div>Martes</div>
+                        <div>Miércoles</div>
+                        <div>Jueves</div>
+                        <div>Viernes</div>
+                        <div>Sábado</div>
+                        <div>Domingo</div>
+                    </div>
+                    <!-- Calendar Days Grid (will be filled dynamically) -->
+                    <div class="calendar-grid" id="calendar-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Vista de Tarjetas y Búsqueda -->
+                <div class="cards-view-wrapper" id="cards-view-container" style="display: none; padding: 1rem;">
+                    <div class="cards-filter-bar">
+                        <div class="form-group" style="flex: 2; min-width: 250px;">
+                            <input type="text" id="cards-search-input" placeholder="🔍 Buscar por título, descripción, nota, planta, tipo..." class="form-control" style="width:100%;">
+                        </div>
+                        <div class="form-group" style="min-width: 120px;">
+                            <select id="cards-filter-type" class="form-control" style="width:100%;">
+                                <option value="all">Todos los Tipos</option>
+                                <option value="trabajo">💼 Trabajos</option>
+                                <option value="actividad">📌 Actividades</option>
+                                <option value="tarea">📝 Gestiones</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 120px;">
+                            <select id="cards-filter-state" class="form-control" style="width:100%;">
+                                <option value="all">Todos los Estados</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Seguimiento">Seguimiento</option>
+                                <option value="Completada">Completada / Completado</option>
+                                <option value="Planificado">Planificado</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 120px;">
+                            <select id="cards-filter-planta" class="form-control" style="width:100%;">
+                                <option value="all">Todas las Plantas</option>
+                                <option value="9901">9901</option>
+                                <option value="10.000">10.000</option>
+                                <option value="LDV">LDV</option>
+                                <option value="All">All</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="cards-search-grid" id="cards-search-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Sidebar: Todo List & Works Accordion -->
+            <div class="sidebar-panel">
+                
+                <!-- Quick To-Do List (Actividades Rápidas) -->
+                <div class="panel todo-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">📌 Actividades Rápidas</h2>
+                    </div>
+                    <div class="todo-input-wrapper">
+                        <input type="text" id="new-todo-text" placeholder="Nueva actividad rápida..." class="form-control">
+                        <button id="btn-add-todo" class="btn btn-add">Agregar</button>
+                    </div>
+                    <ul class="todo-list" id="todo-list-container">
+                        <!-- Loaded dynamically -->
+                    </ul>
+                </div>
+                
+                <!-- Works & Tasks Tree -->
+                <div class="panel works-panel">
+                    <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                        <h2 class="panel-title" style="font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">📌 Estructura de Actividades</h2>
+                        <div style="display: flex; align-items: center; gap: 0.4rem; justify-content: space-between; margin-top: 0.25rem;">
+                            <label for="sort-trabajos" style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; margin: 0; white-space: nowrap;">Ordenar por:</label>
+                            <select id="sort-trabajos" class="form-control" style="font-size: 0.7rem; padding: 0.15rem 0.3rem; height: auto; margin: 0; flex: 1;">
+                                <option value="fecha_inicio_desc">Fecha Actividad (Nuevo primero)</option>
+                                <option value="fecha_creacion_desc">Creación (Nuevo primero)</option>
+                                <option value="fecha_creacion_asc">Creación (Antiguo primero)</option>
+                                <option value="importancia">Por Importancia</option>
+                                <option value="planta">Por Planta</option>
+                                <option value="tipo_actividad">Por Tipo de Actividad</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="search-wrapper">
+                        <input type="text" id="search-trabajos" placeholder="🔍 Buscar actividad por título, descripción, planta..." class="form-control">
+                    </div>
+                    <div class="works-list" id="works-tree-container">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+                
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- MODAL: Crear/Editar Trabajo -->
+    <div class="modal" id="modal-trabajo">
+        <div class="modal-content">
+            <span class="modal-close" id="close-modal-trabajo">&times;</span>
+            <h2 id="modal-trabajo-title" class="modal-title">Crear Nuevo Trabajo</h2>
+            <form id="form-trabajo">
+                <input type="hidden" id="form-trabajo-id">
+                
+                <div class="form-group">
+                    <label for="trabajo-titulo">Título del Trabajo *</label>
+                    <input type="text" id="trabajo-titulo" required placeholder="Ej: Mantención Preventiva Edificio Central" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="trabajo-descripcion">Descripción / Notas</label>
+                    <textarea id="trabajo-descripcion" rows="3" placeholder="Detalles de las actividades a realizar..." class="form-control"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="trabajo-cliente">Cliente / Contacto</label>
+                    <input type="text" id="trabajo-cliente" placeholder="Ej: Juan Pérez - +569 9876 5432" class="form-control">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trabajo-estado">Estado</label>
+                        <select id="trabajo-estado" class="form-control">
+                            <option value="Planificado">Planificado</option>
+                            <option value="En Progreso">En Progreso</option>
+                            <option value="Seguimiento">Seguimiento</option>
+                            <option value="Completado">Completado</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="trabajo-color">Color Visual</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="trabajo-color" value="#3b82f6" class="color-picker">
+                            <span class="color-picker-label">Elige un color para el calendario</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trabajo-planta">Asociar a Planta</label>
+                        <select id="trabajo-planta" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="9901">9901</option>
+                            <option value="10.000">10.000</option>
+                            <option value="LDV">LDV</option>
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="trabajo-tipo-actividad">Clasificación por Tipo</label>
+                        <select id="trabajo-tipo-actividad" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="Compras">Compras</option>
+                            <option value="Inversiones">Inversiones</option>
+                            <option value="Informe">Informe</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trabajo-importancia">Clasificación por Importancia</label>
+                        <select id="trabajo-importancia" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="Prioritario">Prioritario</option>
+                            <option value="Importante">Importante</option>
+                            <option value="Estratégico">Estratégico</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notas y Bitácora Histórica</label>
+                    <div class="notes-log-container" id="trabajo-notes-log" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem; font-size: 0.75rem; max-height: 120px; overflow-y: auto; margin-bottom: 0.5rem; line-height: 1.4; display: none;"></div>
+                    <textarea id="trabajo-nueva-nota" rows="2" placeholder="Agregar una nota nueva (se registrará con fecha y hora al guardar)..." class="form-control"></textarea>
+                </div>
+                
+                <!-- Actividades asociadas a este Trabajo (Solo visible al editar) -->
+                <div class="trabajo-activities-section" id="modal-trabajo-activities-section" style="display: none; border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-dark);">Actividades de este Trabajo</span>
+                        <button type="button" id="btn-add-actividad-from-trabajo" class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">➕ Detallar Actividad</button>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <input type="text" id="new-trabajo-act-text" placeholder="Nueva actividad rápida..." class="form-control" style="font-size: 0.78rem; padding: 0.3rem 0.5rem;">
+                        <button type="button" id="btn-add-act-to-trabajo-quick" class="btn btn-primary" style="font-size: 0.72rem; padding: 0.3rem 0.6rem;">Agregar</button>
+                    </div>
+                    <ul id="modal-trabajo-activities-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; max-height: 120px; overflow-y: auto;">
+                        <!-- Populate dynamically -->
+                    </ul>
+                </div>
+                
+                <!-- Gestiones asociadas a este Trabajo (Solo visible al editar) -->
+                <div class="trabajo-tasks-section" id="modal-trabajo-tasks-section" style="display: none; border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-dark);">Gestiones Asociadas a este Trabajo</span>
+                        <button type="button" id="btn-add-tarea-from-trabajo" class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">➕ Agregar Gestión</button>
+                    </div>
+                    <ul id="modal-trabajo-tasks-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; max-height: 120px; overflow-y: auto;">
+                        <!-- Populate dynamically -->
+                    </ul>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-cancelar-trabajo">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btn-eliminar-trabajo" style="display: none; margin-right: auto;">Eliminar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Trabajo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Crear/Editar Tarea -->
+    <div class="modal" id="modal-tarea">
+        <div class="modal-content">
+            <span class="modal-close" id="close-modal-tarea">&times;</span>
+            <h2 id="modal-tarea-title" class="modal-title">Crear Nueva Gestión</h2>
+            <form id="form-tarea">
+                <input type="hidden" id="form-tarea-id">
+                
+                <div class="form-group">
+                    <label for="tarea-titulo">Título de la Gestión *</label>
+                    <input type="text" id="tarea-titulo" required placeholder="Ej: Medir presiones de gas refrigerante" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tarea-descripcion">Detalles de la Gestión</label>
+                    <textarea id="tarea-descripcion" rows="3" placeholder="Detalles de esta gestión en específico..." class="form-control"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tarea-prioridad">Prioridad</label>
+                        <select id="tarea-prioridad" class="form-control">
+                            <option value="Alta">Alta 🔴</option>
+                            <option value="Media" selected>Media 🟡</option>
+                            <option value="Baja">Baja 🔵</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="tarea-estado">Estado de Ejecución</label>
+                        <select id="tarea-estado" class="form-control">
+                            <option value="Pendiente">Pendiente ⏳</option>
+                            <option value="Seguimiento">Seguimiento 📋</option>
+                            <option value="Completada">Completada ✓</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="tarea-vencimiento">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tarea-trabajo">Asociar a Trabajo (Opcional)</label>
+                        <select id="tarea-trabajo" class="form-control">
+                            <option value="">Ninguno</option>
+                            <!-- Trabajos loaded dynamically -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tarea-planta">Asociar a Planta</label>
+                        <select id="tarea-planta" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="9901">9901</option>
+                            <option value="10.000">10.000</option>
+                            <option value="LDV">LDV</option>
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="tarea-tipo-actividad">Clasificación por Tipo</label>
+                        <select id="tarea-tipo-actividad" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="Compras">Compras</option>
+                            <option value="Inversiones">Inversiones</option>
+                            <option value="Informe">Informe</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tarea-importancia">Clasificación por Importancia</label>
+                        <select id="tarea-importancia" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="Prioritario">Prioritario</option>
+                            <option value="Importante">Importante</option>
+                            <option value="Estratégico">Estratégico</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notas y Bitácora Histórica</label>
+                    <div class="notes-log-container" id="tarea-notes-log" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem; font-size: 0.75rem; max-height: 120px; overflow-y: auto; margin-bottom: 0.5rem; line-height: 1.4; display: none;"></div>
+                    <textarea id="tarea-nueva-nota" rows="2" placeholder="Agregar una nota nueva (se registrará con fecha y hora al guardar)..." class="form-control"></textarea>
+                </div>
+
+                <!-- Actividades asociadas a esta Gestión (Solo visible al editar) -->
+                <div class="tarea-activities-section" id="modal-tarea-activities-section" style="display: none; border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-dark);">Actividades de esta Gestión</span>
+                        <button type="button" id="btn-add-actividad-from-tarea" class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">➕ Detallar Actividad</button>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <input type="text" id="new-tarea-act-text" placeholder="Nueva actividad rápida..." class="form-control" style="font-size: 0.78rem; padding: 0.3rem 0.5rem;">
+                        <button type="button" id="btn-add-act-to-tarea-quick" class="btn btn-primary" style="font-size: 0.72rem; padding: 0.3rem 0.6rem;">Agregar</button>
+                    </div>
+                    <ul id="modal-tarea-activities-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; max-height: 120px; overflow-y: auto;">
+                        <!-- Populate dynamically -->
+                    </ul>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-cancelar-tarea">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btn-eliminar-tarea" style="display: none; margin-right: auto;">Eliminar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Gestión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Crear/Editar Actividad -->
+    <div class="modal" id="modal-actividad">
+        <div class="modal-content">
+            <span class="modal-close" id="close-modal-actividad">&times;</span>
+            <h2 id="modal-actividad-title" class="modal-title">Crear Nueva Actividad</h2>
+            <form id="form-actividad">
+                <input type="hidden" id="form-actividad-id">
+                
+                <div class="form-group">
+                    <label for="actividad-titulo">Título de la Actividad *</label>
+                    <input type="text" id="actividad-titulo" required placeholder="Ej: Adquisición de Filtros de Aire" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="actividad-descripcion">Descripción / Notas</label>
+                    <textarea id="actividad-descripcion" rows="3" placeholder="Detalles de la actividad..." class="form-control"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1; min-width: 180px;">
+                        <label>Fecha y Hora de Inicio</label>
+                        <div style="display: flex; gap: 0.4rem;">
+                            <input type="date" id="actividad-inicio-fecha" class="form-control" style="flex: 2;">
+                            <input type="time" id="actividad-inicio-hora" class="form-control" style="flex: 1.2;">
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 180px;">
+                        <label>Fecha y Hora de Fin</label>
+                        <div style="display: flex; gap: 0.4rem;">
+                            <input type="date" id="actividad-fin-fecha" class="form-control" style="flex: 2;">
+                            <input type="time" id="actividad-fin-hora" class="form-control" style="flex: 1.2;">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="actividad-estado">Estado</label>
+                        <select id="actividad-estado" class="form-control">
+                            <option value="Planificado">Planificado</option>
+                            <option value="En Progreso">En Progreso</option>
+                            <option value="Seguimiento">Seguimiento</option>
+                            <option value="Completado">Completado</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="actividad-color">Color Visual</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="actividad-color" value="#f59e0b" class="color-picker">
+                            <span class="color-picker-label">Elige un color para el calendario</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="actividad-trabajo">Asociar a Trabajo (Opcional)</label>
+                        <select id="actividad-trabajo" class="form-control">
+                            <option value="">Ninguno</option>
+                            <!-- Trabajos loaded dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="actividad-tarea">Asociar a Gestión (Opcional)</label>
+                        <select id="actividad-tarea" class="form-control">
+                            <option value="">Ninguna</option>
+                            <!-- Gestiones loaded dynamically -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="actividad-planta">Asociar a Planta</label>
+                        <select id="actividad-planta" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="9901">9901</option>
+                            <option value="10.000">10.000</option>
+                            <option value="LDV">LDV</option>
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="actividad-tipo-actividad">Clasificación por Tipo</label>
+                        <select id="actividad-tipo-actividad" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="Compras">Compras</option>
+                            <option value="Inversiones">Inversiones</option>
+                            <option value="Informe">Informe</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="actividad-importancia">Clasificación por Importancia</label>
+                        <select id="actividad-importancia" class="form-control">
+                            <option value="">Ninguna</option>
+                            <option value="Prioritario">Prioritario</option>
+                            <option value="Importante">Importante</option>
+                            <option value="Estratégico">Estratégico</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="actividad-tiempo-invertir">Clasificación por Tiempo</label>
+                        <select id="actividad-tiempo-invertir" class="form-control">
+                            <option value="">Ninguno</option>
+                            <option value="15 min.">15 min.</option>
+                            <option value="40 min.">40 min.</option>
+                            <option value="Horas.">Horas.</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="actividad-duracion-minutos">Duración (minutos)</label>
+                        <input type="number" id="actividad-duracion-minutos" min="0" placeholder="Ej: 60" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notas y Bitácora Histórica</label>
+                    <div class="notes-log-container" id="actividad-notes-log" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem; font-size: 0.75rem; max-height: 120px; overflow-y: auto; margin-bottom: 0.5rem; line-height: 1.4; display: none;"></div>
+                    <textarea id="actividad-nueva-nota" rows="2" placeholder="Agregar una nota nueva (se registrará con fecha y hora al guardar)..." class="form-control"></textarea>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-cancelar-actividad">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btn-eliminar-actividad" style="display: none; margin-right: auto;">Eliminar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Actividad</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cargar archivo Javascript -->
+    <script src="/static/js/app.js?v=32"></script>
+</body>
+</html>
