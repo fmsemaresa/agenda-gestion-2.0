@@ -17,8 +17,8 @@ def free_port(port):
                     pids.add(pid)
         for pid in pids:
             if pid != '0':
-                print(f"[INFO] Liberando puerto {port} (Matando proceso PID {pid})...")
-                subprocess.run(f"taskkill /F /PID {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print(f"[INFO] Liberando puerto {port} (Matando proceso PID {pid} y sus subprocesos)...")
+                subprocess.run(f"taskkill /F /T /PID {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         pass
 

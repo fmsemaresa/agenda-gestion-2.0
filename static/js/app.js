@@ -1551,6 +1551,62 @@ function setupEventListeners() {
     if (document.getElementById('btn-nueva-actividad')) {
         document.getElementById('btn-nueva-actividad').addEventListener('click', () => openCreateActividadModal());
     }
+
+    // Exportar a Excel
+    const btnExportar = document.getElementById('btn-exportar');
+    if (btnExportar) {
+        btnExportar.addEventListener('click', async () => {
+            const originalHtml = btnExportar.innerHTML;
+            try {
+                btnExportar.disabled = true;
+                btnExportar.innerHTML = '<span>⏳</span> Generando...';
+                btnExportar.style.opacity = '0.7';
+                btnExportar.style.cursor = 'wait';
+
+                const response = await fetch('/api/exportar/excel');
+                if (!response.ok) {
+                    let errorMsg = 'Error en el servidor al generar el archivo Excel';
+                    try {
+                        const errData = await response.json();
+                        if (errData.detail) errorMsg = errData.detail;
+                    } catch (_) {}
+                    throw new Error(errorMsg);
+                }
+
+                let filename = 'agenda_reporte.xlsx';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.includes('filename=')) {
+                    const parts = disposition.split('filename=');
+                    if (parts.length > 1) {
+                        filename = parts[1].split(';')[0].trim().replaceAll('"', '').replaceAll("'", '');
+                    }
+                }
+
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(blobUrl);
+                }, 1500);
+
+            } catch (error) {
+                console.error('Error al exportar Excel:', error);
+                alert(`No se pudo descargar el archivo Excel: ${error.message}`);
+            } finally {
+                btnExportar.disabled = false;
+                btnExportar.innerHTML = originalHtml;
+                btnExportar.style.opacity = '';
+                btnExportar.style.cursor = '';
+            }
+        });
+    }
     
     // Add Todo click & Enter key
     document.getElementById('btn-add-todo').addEventListener('click', addNewTodo);
