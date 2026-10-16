@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda & Gestión 2.0 - Software FM</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=32">
+    <link rel="stylesheet" href="/static/css/style.css?v=33">
 </head>
 <body>
 
@@ -36,9 +36,9 @@
 
         <!-- KPI Row -->
         <div class="kpi-container">
-            <div class="kpi-card interactive" id="kpi-total-trabajos">
+            <div class="kpi-card interactive" id="kpi-total-trabajos" title="Ver listado de Trabajos">
                 <div class="kpi-info">
-                    <h3>Total Tarjetas</h3>
+                    <h3>Trabajos</h3>
                     <div class="kpi-value" id="val-total-trabajos">0</div>
                 </div>
                 <div class="kpi-icon-wrapper teal">💼</div>
@@ -72,12 +72,13 @@
             <!-- Left/Center: Calendar Panel -->
             <div class="panel calendar-panel">
                 <div class="panel-header">
-                    <h2 class="panel-title">📅 Calendario de Actividades</h2>
+                    <h2 class="panel-title" id="calendar-panel-title">📅 Calendario de Actividades</h2>
                     <!-- Pestañas de Vistas -->
                     <div class="calendar-views-tabs">
                         <button id="view-month" class="view-tab active">Mes</button>
                         <button id="view-week" class="view-tab">Semana</button>
                         <button id="view-day" class="view-tab">Día</button>
+                        <button id="view-trabajos" class="view-tab">💼 Trabajos</button>
                         <button id="view-cards" class="view-tab">🔍 Buscar Tarjetas</button>
                     </div>
                     <div class="calendar-controls" id="calendar-controls-wrapper">
@@ -100,6 +101,60 @@
                     </div>
                     <!-- Calendar Days Grid (will be filled dynamically) -->
                     <div class="calendar-grid" id="calendar-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Vista de Listado de Trabajos -->
+                <div class="trabajos-view-wrapper" id="trabajos-view-container" style="display: none; padding: 1rem;">
+                    <div class="trabajos-filter-bar">
+                        <div class="form-group" style="flex: 2; min-width: 220px;">
+                            <input type="text" id="trabajos-search-input" placeholder="🔍 Buscar trabajo por título, descripción, cliente, planta..." class="form-control" style="width:100%;">
+                        </div>
+                        <div class="form-group" style="min-width: 130px;">
+                            <select id="trabajos-filter-state" class="form-control" style="width:100%;">
+                                <option value="all">Todos los Estados</option>
+                                <option value="Planificado">Planificado</option>
+                                <option value="En Progreso">En Progreso</option>
+                                <option value="Seguimiento">Seguimiento</option>
+                                <option value="Completado">Completado</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 120px;">
+                            <select id="trabajos-filter-planta" class="form-control" style="width:100%;">
+                                <option value="all">Todas las Plantas</option>
+                                <option value="9901">9901</option>
+                                <option value="10.000">10.000</option>
+                                <option value="LDV">LDV</option>
+                                <option value="All">All</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 130px;">
+                            <select id="trabajos-filter-importancia" class="form-control" style="width:100%;">
+                                <option value="all">Todas las Prioridades</option>
+                                <option value="Prioritario">Prioritario</option>
+                                <option value="Importante">Importante</option>
+                                <option value="Estratégico">Estratégico</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 130px;">
+                            <select id="trabajos-sort-by" class="form-control" style="width:100%;">
+                                <option value="id_desc">Más recientes (ID)</option>
+                                <option value="id_asc">Más antiguos (ID)</option>
+                                <option value="titulo">Por Título (A-Z)</option>
+                                <option value="estado">Por Estado</option>
+                                <option value="importancia">Por Importancia</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-primary" id="btn-crear-trabajo-from-view" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; white-space: nowrap;">
+                            <span>➕</span> Nuevo Trabajo
+                        </button>
+                    </div>
+                    <div class="trabajos-summary-bar" style="font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0 0.2rem;">
+                        <span id="trabajos-counter-text">Cargando trabajos...</span>
+                    </div>
+                    <div class="trabajos-grid" id="trabajos-grid">
                         <!-- Loaded dynamically -->
                     </div>
                 </div>
@@ -557,6 +612,6 @@
     </div>
 
     <!-- Cargar archivo Javascript -->
-    <script src="/static/js/app.js?v=33"></script>
+    <script src="/static/js/app.js?v=34"></script>
 </body>
 </html>

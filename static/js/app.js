@@ -210,22 +210,49 @@ function getEventCountForDate(date) {
     return getEventsForDate(date).length;
 }
 
-// Render Calendar (Month, Week, or Day View)
+// Render Calendar (Month, Week, Day, Trabajos, or Cards View)
 function renderCalendar() {
     calendarGrid.innerHTML = '';
     
     // Configurar clases activas en los botones de vista
     document.querySelectorAll('.view-tab').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`view-${currentView}`).classList.add('active');
+    const currentTabBtn = document.getElementById(`view-${currentView}`);
+    if (currentTabBtn) currentTabBtn.classList.add('active');
     
     const weekdaysHeader = document.querySelector('.calendar-weekdays');
     const calendarControls = document.getElementById('calendar-controls-wrapper');
     const calendarViewContainer = document.getElementById('calendar-view-container');
     const cardsViewContainer = document.getElementById('cards-view-container');
+    const trabajosViewContainer = document.getElementById('trabajos-view-container');
+    const panelTitle = document.getElementById('calendar-panel-title');
     
-    if (currentView === 'cards') {
+    // Sincronizar estado visual de tarjeta KPI Trabajos
+    const kpiTrabajos = document.getElementById('kpi-total-trabajos');
+    if (kpiTrabajos) {
+        if (currentView === 'trabajos') {
+            kpiTrabajos.classList.add('active-filter');
+        } else if (activeFilter !== 'trabajos') {
+            kpiTrabajos.classList.remove('active-filter');
+        }
+    }
+    
+    if (currentView === 'trabajos') {
+        if (panelTitle) panelTitle.textContent = '💼 Listado de Trabajos';
         if (calendarControls) calendarControls.style.display = 'none';
         if (calendarViewContainer) calendarViewContainer.style.display = 'none';
+        if (cardsViewContainer) cardsViewContainer.style.display = 'none';
+        if (weekdaysHeader) weekdaysHeader.classList.add('hidden');
+        if (trabajosViewContainer) {
+            trabajosViewContainer.style.display = 'flex';
+            trabajosViewContainer.style.flexDirection = 'column';
+        }
+        renderTrabajosView();
+        return;
+    } else if (currentView === 'cards') {
+        if (panelTitle) panelTitle.textContent = '🔍 Buscar Tarjetas';
+        if (calendarControls) calendarControls.style.display = 'none';
+        if (calendarViewContainer) calendarViewContainer.style.display = 'none';
+        if (trabajosViewContainer) trabajosViewContainer.style.display = 'none';
         if (weekdaysHeader) weekdaysHeader.classList.add('hidden');
         if (cardsViewContainer) {
             cardsViewContainer.style.display = 'flex';
@@ -234,9 +261,11 @@ function renderCalendar() {
         renderCardsSearch();
         return;
     } else {
+        if (panelTitle) panelTitle.textContent = '📅 Calendario de Actividades';
         if (calendarControls) calendarControls.style.display = '';
         if (calendarViewContainer) calendarViewContainer.style.display = '';
         if (cardsViewContainer) cardsViewContainer.style.display = 'none';
+        if (trabajosViewContainer) trabajosViewContainer.style.display = 'none';
     }
     
     const meses = [
@@ -1657,10 +1686,26 @@ function setupEventListeners() {
     });
     
     // KPI click filters
-    document.getElementById('kpi-total-trabajos').addEventListener('click', () => toggleKPIFilter('trabajos'));
+    document.getElementById('kpi-total-trabajos').addEventListener('click', () => {
+        if (currentView === 'trabajos') {
+            currentView = 'month';
+        } else {
+            currentView = 'trabajos';
+        }
+        renderAll();
+    });
     document.getElementById('kpi-tareas-pendientes').addEventListener('click', () => toggleKPIFilter('pendientes'));
     document.getElementById('kpi-tareas-completadas').addEventListener('click', () => toggleKPIFilter('completadas'));
     document.getElementById('kpi-todos-pendientes').addEventListener('click', () => toggleKPIFilter('todos'));
+
+    // Pestaña de listado de trabajos
+    const viewTrabajosBtn = document.getElementById('view-trabajos');
+    if (viewTrabajosBtn) {
+        viewTrabajosBtn.addEventListener('click', () => {
+            currentView = 'trabajos';
+            renderAll();
+        });
+    }
 
     // Pestaña de buscar tarjetas
     const viewCardsBtn = document.getElementById('view-cards');
@@ -1669,6 +1714,32 @@ function setupEventListeners() {
             currentView = 'cards';
             renderAll();
         });
+    }
+
+    // Inputs de búsqueda y filtros en Vista Trabajos
+    const trabajosSearchInput = document.getElementById('trabajos-search-input');
+    if (trabajosSearchInput) {
+        trabajosSearchInput.addEventListener('input', renderTrabajosView);
+    }
+    const trabajosFilterState = document.getElementById('trabajos-filter-state');
+    if (trabajosFilterState) {
+        trabajosFilterState.addEventListener('change', renderTrabajosView);
+    }
+    const trabajosFilterPlanta = document.getElementById('trabajos-filter-planta');
+    if (trabajosFilterPlanta) {
+        trabajosFilterPlanta.addEventListener('change', renderTrabajosView);
+    }
+    const trabajosFilterImportancia = document.getElementById('trabajos-filter-importancia');
+    if (trabajosFilterImportancia) {
+        trabajosFilterImportancia.addEventListener('change', renderTrabajosView);
+    }
+    const trabajosSortBy = document.getElementById('trabajos-sort-by');
+    if (trabajosSortBy) {
+        trabajosSortBy.addEventListener('change', renderTrabajosView);
+    }
+    const btnCrearTrabajoFromView = document.getElementById('btn-crear-trabajo-from-view');
+    if (btnCrearTrabajoFromView) {
+        btnCrearTrabajoFromView.addEventListener('click', () => openCreateTrabajoModal());
     }
 
     // Inputs de búsqueda y filtros en Vista Buscar Tarjetas
@@ -1710,6 +1781,9 @@ function setupEventListeners() {
 
 // Toggle filters based on KPI clicks
 function toggleKPIFilter(filterType) {
+    if (currentView === 'trabajos' || currentView === 'cards') {
+        currentView = 'month';
+    }
     const cards = document.querySelectorAll('.kpi-card');
     cards.forEach(c => c.classList.remove('active-filter'));
     
@@ -1719,7 +1793,8 @@ function toggleKPIFilter(filterType) {
         activeFilter = filterType;
         // Resaltar la tarjeta correspondiente
         const cardId = `kpi-${filterType === 'trabajos' ? 'total-trabajos' : filterType === 'pendientes' ? 'tareas-pendientes' : filterType === 'completadas' ? 'tareas-completadas' : 'todos-pendientes'}`;
-        document.getElementById(cardId).classList.add('active-filter');
+        const targetCard = document.getElementById(cardId);
+        if (targetCard) targetCard.classList.add('active-filter');
     }
     
     renderAll();
@@ -2630,6 +2705,238 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// --- VISTA LISTADO DE TRABAJOS ---
+
+function renderTrabajosView() {
+    const searchVal = (document.getElementById('trabajos-search-input')?.value || '').toLowerCase().trim();
+    const filterState = document.getElementById('trabajos-filter-state')?.value || 'all';
+    const filterPlanta = document.getElementById('trabajos-filter-planta')?.value || 'all';
+    const filterImportancia = document.getElementById('trabajos-filter-importancia')?.value || 'all';
+    const sortBy = document.getElementById('trabajos-sort-by')?.value || 'id_desc';
+    
+    // Filtrar trabajos
+    let filtered = trabajos.filter(job => {
+        // Estado
+        if (filterState !== 'all' && (job.estado || 'Planificado') !== filterState) {
+            return false;
+        }
+        // Planta
+        if (filterPlanta !== 'all' && (job.planta || '').toLowerCase() !== filterPlanta.toLowerCase()) {
+            return false;
+        }
+        // Importancia
+        if (filterImportancia !== 'all' && (job.importancia || '') !== filterImportancia) {
+            return false;
+        }
+        // Búsqueda de texto
+        if (searchVal) {
+            const matchTitle = (job.titulo || '').toLowerCase().includes(searchVal);
+            const matchDesc = (job.descripcion || '').toLowerCase().includes(searchVal);
+            const matchCli = (job.cliente_contacto || '').toLowerCase().includes(searchVal);
+            const matchNota = (job.nota || '').toLowerCase().includes(searchVal);
+            const matchPlanta = (job.planta || '').toLowerCase().includes(searchVal);
+            const matchTipo = (job.tipo_actividad || '').toLowerCase().includes(searchVal);
+            const matchImp = (job.importancia || '').toLowerCase().includes(searchVal);
+            if (!matchTitle && !matchDesc && !matchCli && !matchNota && !matchPlanta && !matchTipo && !matchImp) {
+                return false;
+            }
+        }
+        return true;
+    });
+    
+    // Ordenar trabajos
+    if (sortBy === 'id_asc') {
+        filtered.sort((a, b) => a.id - b.id);
+    } else if (sortBy === 'titulo') {
+        filtered.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || ''));
+    } else if (sortBy === 'estado') {
+        filtered.sort((a, b) => (a.estado || '').localeCompare(b.estado || ''));
+    } else if (sortBy === 'importancia') {
+        const impOrder = { 'Prioritario': 1, 'Importante': 2, 'Estratégico': 3, '': 4, null: 4 };
+        filtered.sort((a, b) => (impOrder[a.importancia] || 4) - (impOrder[b.importancia] || 4));
+    } else {
+        filtered.sort((a, b) => b.id - a.id);
+    }
+    
+    const counterEl = document.getElementById('trabajos-counter-text');
+    if (counterEl) {
+        counterEl.innerHTML = `Mostrando <strong>${filtered.length}</strong> de <strong>${trabajos.length}</strong> trabajos`;
+    }
+    
+    const gridContainer = document.getElementById('trabajos-grid');
+    if (!gridContainer) return;
+    gridContainer.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        gridContainer.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-primary); border-radius: 8px; border: 1px dashed var(--border-color);">
+                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">💼</div>
+                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.3rem; color: var(--text-dark);">No se encontraron trabajos</div>
+                <div style="font-size: 0.8rem;">Prueba ajustando los filtros o crea un nuevo trabajo con el botón superior.</div>
+            </div>
+        `;
+        return;
+    }
+    
+    filtered.forEach(job => {
+        const card = document.createElement('div');
+        card.className = 'trabajo-item-card';
+        card.style.borderLeftColor = job.color || '#3b82f6';
+        
+        // Gestiones y Actividades vinculadas
+        const jobTasks = allTareas.filter(t => t.trabajo_id === job.id);
+        const taskIds = jobTasks.map(t => t.id);
+        const jobActs = actividades.filter(a => a.trabajo_id === job.id || (a.tarea_id && taskIds.includes(a.tarea_id)));
+        
+        const pendingTasks = jobTasks.filter(t => t.estado === 'Pendiente' || t.estado === 'Seguimiento').length;
+        const doneTasks = jobTasks.filter(t => t.estado === 'Completada').length;
+        
+        const pendingActs = jobActs.filter(a => !a.completado).length;
+        const doneActs = jobActs.filter(a => a.completado).length;
+        
+        // Clase de estado para badge
+        let stateClass = 'planificado';
+        if (job.estado === 'En Progreso') stateClass = 'progreso';
+        else if (job.estado === 'Seguimiento') stateClass = 'seguimiento';
+        else if (job.estado === 'Completado') stateClass = 'completado';
+        else if (job.estado === 'Cancelado') stateClass = 'cancelado';
+        
+        // Metadatos y badges
+        let badgesHtml = '';
+        if (job.planta) {
+            badgesHtml += `<span class="trabajo-meta-badge planta">🏢 Planta: ${escapeHtml(job.planta)}</span>`;
+        }
+        if (job.importancia) {
+            badgesHtml += `<span class="trabajo-meta-badge importancia">⭐ ${escapeHtml(job.importancia)}</span>`;
+        }
+        if (job.tipo_actividad) {
+            badgesHtml += `<span class="trabajo-meta-badge tipo">🏷️ ${escapeHtml(job.tipo_actividad)}</span>`;
+        }
+        
+        // Fecha de creación
+        let dateFormatted = '';
+        if (job.fecha_creacion) {
+            try {
+                const d = new Date(job.fecha_creacion);
+                if (!isNaN(d.getTime())) {
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const year = d.getFullYear();
+                    dateFormatted = `${day}/${month}/${year}`;
+                }
+            } catch (_) {}
+        }
+        
+        // Sub-items vinculados
+        let subitemsHtml = '';
+        if (jobTasks.length > 0 || jobActs.length > 0) {
+            let taskListHtml = '';
+            jobTasks.slice(0, 3).forEach(t => {
+                taskListHtml += `
+                    <div class="trabajo-subitem-line" title="${escapeHtml(t.titulo)}">
+                        <span>📝 ${escapeHtml(t.titulo)}</span>
+                        <span class="subitem-state ${t.estado === 'Completada' ? 'done' : 'pending'}">${escapeHtml(t.estado)}</span>
+                    </div>
+                `;
+            });
+            if (jobTasks.length > 3) {
+                taskListHtml += `<div class="subitem-more">+${jobTasks.length - 3} gestiones más...</div>`;
+            }
+            
+            let actListHtml = '';
+            jobActs.slice(0, 3).forEach(a => {
+                actListHtml += `
+                    <div class="trabajo-subitem-line" title="${escapeHtml(a.titulo)}">
+                        <span>📌 ${escapeHtml(a.titulo)}</span>
+                        <span class="subitem-state ${a.completado ? 'done' : 'pending'}">${a.completado ? 'Completada' : 'Pendiente'}</span>
+                    </div>
+                `;
+            });
+            if (jobActs.length > 3) {
+                actListHtml += `<div class="subitem-more">+${jobActs.length - 3} actividades más...</div>`;
+            }
+            
+            subitemsHtml = `
+                <div class="trabajo-subitems-container">
+                    <div class="trabajo-subitems-header">
+                        <span>Gestiones y Actividades vinculadas:</span>
+                    </div>
+                    ${jobTasks.length > 0 ? `<div class="subitems-block">${taskListHtml}</div>` : ''}
+                    ${jobActs.length > 0 ? `<div class="subitems-block">${actListHtml}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        card.innerHTML = `
+            <div class="trabajo-card-top">
+                <div class="trabajo-id-badge" style="background-color: ${job.color || '#3b82f6'}; color: #fff;">
+                    #${job.id}
+                </div>
+                <div class="trabajo-status-badge ${stateClass}">
+                    ${escapeHtml(job.estado || 'Planificado')}
+                </div>
+                ${dateFormatted ? `<span class="trabajo-date-label">📅 ${dateFormatted}</span>` : ''}
+            </div>
+            
+            <div class="trabajo-card-title">${escapeHtml(job.titulo)}</div>
+            
+            ${job.descripcion ? `<div class="trabajo-card-desc">${escapeHtml(job.descripcion)}</div>` : ''}
+            
+            ${job.cliente_contacto ? `<div class="trabajo-card-client">👤 Contacto: <strong>${escapeHtml(job.cliente_contacto)}</strong></div>` : ''}
+            
+            ${badgesHtml ? `<div class="trabajo-badges-row">${badgesHtml}</div>` : ''}
+            
+            <div class="trabajo-stats-row">
+                <div class="trabajo-stat-pill" title="${pendingTasks} pendientes, ${doneTasks} completadas">
+                    <span>📝 Gestiones:</span> <strong>${jobTasks.length}</strong>
+                    <small>(${pendingTasks} pend.)</small>
+                </div>
+                <div class="trabajo-stat-pill" title="${pendingActs} pendientes, ${doneActs} completadas">
+                    <span>📌 Actividades:</span> <strong>${jobActs.length}</strong>
+                    <small>(${pendingActs} pend.)</small>
+                </div>
+            </div>
+            
+            ${subitemsHtml}
+            
+            <div class="trabajo-card-footer">
+                <button type="button" class="btn-card-action btn-trabajo-edit" title="Editar trabajo completo">
+                    ✏️ Editar
+                </button>
+                <button type="button" class="btn-card-action btn-trabajo-add-task" title="Agregar una nueva gestión a este trabajo">
+                    📝 + Gestión
+                </button>
+                <button type="button" class="btn-card-action btn-trabajo-add-act" title="Agregar una nueva actividad a este trabajo">
+                    📌 + Actividad
+                </button>
+            </div>
+        `;
+        
+        // Listeners interactivos
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('input')) return;
+            openEditTrabajoModal(job.id);
+        });
+        
+        card.querySelector('.btn-trabajo-edit').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditTrabajoModal(job.id);
+        });
+        
+        card.querySelector('.btn-trabajo-add-task').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCreateTareaModalForTrabajo(job.id);
+        });
+        
+        card.querySelector('.btn-trabajo-add-act').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCreateActividadModalForTrabajo(job.id);
+        });
+        
+        gridContainer.appendChild(card);
+    });
 }
 
 // --- VISTA BUSCADOR DE TARJETAS Y FILTROS ---

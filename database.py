@@ -6,7 +6,9 @@ from models import Trabajo, Tarea, Actividad
 # Usar DATABASE_URL de Render en producción, o SQLite local en desarrollo
 database_url = os.getenv("DATABASE_URL", "sqlite:///agenda.db")
 if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+    database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
+elif database_url.startswith("postgresql://") and not database_url.startswith("postgresql+"):
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 connect_args = {}
 if database_url.startswith("sqlite"):
@@ -52,10 +54,11 @@ def init_db():
         except Exception:
             session.rollback()
             
-        # Migrar To-Dos antiguos a Actividades
-        try:
-            # Verificar si existe la tabla antigua itemtodo
-            res = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='itemtodo'")).fetchone()
+        # Migrar To-Dos antiguos a Actividades (solo para SQLite local)
+        if database_url.startswith("sqlite"):
+            try:
+                # Verificar si existe la tabla antigua itemtodo
+                res = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='itemtodo'")).fetchone()
             if res:
                 # Obtener todos los ítems de itemtodo
                 todos = session.execute(text("SELECT id, texto, completado, fecha_creacion, orden, tarea_id FROM itemtodo")).fetchall()
