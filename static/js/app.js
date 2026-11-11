@@ -226,13 +226,17 @@ function renderCalendar() {
     const trabajosViewContainer = document.getElementById('trabajos-view-container');
     const panelTitle = document.getElementById('calendar-panel-title');
     
-    // Sincronizar estado visual de tarjeta KPI Trabajos
-    const kpiTrabajos = document.getElementById('kpi-total-trabajos');
-    if (kpiTrabajos) {
-        if (currentView === 'trabajos') {
-            kpiTrabajos.classList.add('active-filter');
-        } else if (activeFilter !== 'trabajos') {
-            kpiTrabajos.classList.remove('active-filter');
+    // Sincronizar estado visual de todas las tarjetas KPI superiores
+    document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
+    if (currentView === 'trabajos' || activeFilter === 'trabajos') {
+        document.getElementById('kpi-total-trabajos')?.classList.add('active-filter');
+    } else if (currentView === 'cards') {
+        if (activeFilter === 'pendientes') {
+            document.getElementById('kpi-tareas-pendientes')?.classList.add('active-filter');
+        } else if (activeFilter === 'completadas') {
+            document.getElementById('kpi-tareas-completadas')?.classList.add('active-filter');
+        } else if (activeFilter === 'todos') {
+            document.getElementById('kpi-todos-pendientes')?.classList.add('active-filter');
         }
     }
     
@@ -249,7 +253,12 @@ function renderCalendar() {
         renderTrabajosView();
         return;
     } else if (currentView === 'cards') {
-        if (panelTitle) panelTitle.textContent = '🔍 Buscar Tarjetas';
+        if (panelTitle) {
+            if (activeFilter === 'pendientes') panelTitle.textContent = '⏳ Gestiones Pendientes';
+            else if (activeFilter === 'completadas') panelTitle.textContent = '✓ Gestiones Completadas';
+            else if (activeFilter === 'todos') panelTitle.textContent = '📌 Actividades Pendientes';
+            else panelTitle.textContent = '🔍 Buscar Tarjetas';
+        }
         if (calendarControls) calendarControls.style.display = 'none';
         if (calendarViewContainer) calendarViewContainer.style.display = 'none';
         if (trabajosViewContainer) trabajosViewContainer.style.display = 'none';
@@ -1532,16 +1541,19 @@ function setupEventListeners() {
     // Pestañas de vistas del calendario
     document.getElementById('view-month').addEventListener('click', () => {
         currentView = 'month';
+        activeFilter = null;
         renderAll();
     });
     
     document.getElementById('view-week').addEventListener('click', () => {
         currentView = 'week';
+        activeFilter = null;
         renderAll();
     });
     
     document.getElementById('view-day').addEventListener('click', () => {
         currentView = 'day';
+        activeFilter = null;
         renderAll();
     });
 
@@ -1685,15 +1697,8 @@ function setupEventListeners() {
         }, 100);
     });
     
-    // KPI click filters
-    document.getElementById('kpi-total-trabajos').addEventListener('click', () => {
-        if (currentView === 'trabajos') {
-            currentView = 'month';
-        } else {
-            currentView = 'trabajos';
-        }
-        renderAll();
-    });
+    // KPI click filters (despliegue interactivo tipo Gestión de OTs)
+    document.getElementById('kpi-total-trabajos').addEventListener('click', () => toggleKPIFilter('trabajos'));
     document.getElementById('kpi-tareas-pendientes').addEventListener('click', () => toggleKPIFilter('pendientes'));
     document.getElementById('kpi-tareas-completadas').addEventListener('click', () => toggleKPIFilter('completadas'));
     document.getElementById('kpi-todos-pendientes').addEventListener('click', () => toggleKPIFilter('todos'));
@@ -1703,6 +1708,7 @@ function setupEventListeners() {
     if (viewTrabajosBtn) {
         viewTrabajosBtn.addEventListener('click', () => {
             currentView = 'trabajos';
+            activeFilter = 'trabajos';
             renderAll();
         });
     }
@@ -1712,6 +1718,11 @@ function setupEventListeners() {
     if (viewCardsBtn) {
         viewCardsBtn.addEventListener('click', () => {
             currentView = 'cards';
+            activeFilter = null;
+            const filterTypeSelect = document.getElementById('cards-filter-type');
+            const filterStateSelect = document.getElementById('cards-filter-state');
+            if (filterTypeSelect) filterTypeSelect.value = 'all';
+            if (filterStateSelect) filterStateSelect.value = 'all';
             renderAll();
         });
     }
@@ -1779,22 +1790,53 @@ function setupEventListeners() {
     }
 }
 
-// Toggle filters based on KPI clicks
+// Toggle filters based on KPI clicks (Despliegue similar a Gestión de OTs)
 function toggleKPIFilter(filterType) {
-    if (currentView === 'trabajos' || currentView === 'cards') {
-        currentView = 'month';
-    }
-    const cards = document.querySelectorAll('.kpi-card');
-    cards.forEach(c => c.classList.remove('active-filter'));
+    const filterTypeSelect = document.getElementById('cards-filter-type');
+    const filterStateSelect = document.getElementById('cards-filter-state');
+    const searchInput = document.getElementById('cards-search-input');
     
-    if (activeFilter === filterType) {
-        activeFilter = null; // Quitar filtro
-    } else {
-        activeFilter = filterType;
-        // Resaltar la tarjeta correspondiente
-        const cardId = `kpi-${filterType === 'trabajos' ? 'total-trabajos' : filterType === 'pendientes' ? 'tareas-pendientes' : filterType === 'completadas' ? 'tareas-completadas' : 'todos-pendientes'}`;
-        const targetCard = document.getElementById(cardId);
-        if (targetCard) targetCard.classList.add('active-filter');
+    if (filterType === 'trabajos') {
+        if (currentView === 'trabajos') {
+            currentView = 'month';
+            activeFilter = null;
+        } else {
+            currentView = 'trabajos';
+            activeFilter = 'trabajos';
+        }
+    } else if (filterType === 'pendientes') {
+        if (currentView === 'cards' && activeFilter === 'pendientes') {
+            currentView = 'month';
+            activeFilter = null;
+        } else {
+            currentView = 'cards';
+            activeFilter = 'pendientes';
+            if (filterTypeSelect) filterTypeSelect.value = 'tarea';
+            if (filterStateSelect) filterStateSelect.value = 'Pendiente';
+            if (searchInput) searchInput.value = '';
+        }
+    } else if (filterType === 'completadas') {
+        if (currentView === 'cards' && activeFilter === 'completadas') {
+            currentView = 'month';
+            activeFilter = null;
+        } else {
+            currentView = 'cards';
+            activeFilter = 'completadas';
+            if (filterTypeSelect) filterTypeSelect.value = 'tarea';
+            if (filterStateSelect) filterStateSelect.value = 'Completada';
+            if (searchInput) searchInput.value = '';
+        }
+    } else if (filterType === 'todos') {
+        if (currentView === 'cards' && activeFilter === 'todos') {
+            currentView = 'month';
+            activeFilter = null;
+        } else {
+            currentView = 'cards';
+            activeFilter = 'todos';
+            if (filterTypeSelect) filterTypeSelect.value = 'actividad';
+            if (filterStateSelect) filterStateSelect.value = 'Pendiente';
+            if (searchInput) searchInput.value = '';
+        }
     }
     
     renderAll();
@@ -2782,8 +2824,14 @@ function renderTrabajosView() {
     
     filtered.forEach(job => {
         const card = document.createElement('div');
-        card.className = 'trabajo-item-card';
-        card.style.borderLeftColor = job.color || '#3b82f6';
+        let priorityClass = 'priority-media';
+        const pVal = (job.importancia || '').toLowerCase();
+        if (pVal === 'prioritario' || pVal === 'alta') priorityClass = 'priority-alta';
+        else if (pVal === 'estrategico' || pVal === 'baja') priorityClass = 'priority-baja';
+        if (job.estado === 'Completado') priorityClass += ' status-done';
+        
+        card.className = `entity-card ${priorityClass}`;
+        card.style.setProperty('--card-accent', job.color || '#0284c7');
         
         // Gestiones y Actividades vinculadas
         const jobTasks = allTareas.filter(t => t.trabajo_id === job.id);
@@ -2797,23 +2845,16 @@ function renderTrabajosView() {
         const doneActs = jobActs.filter(a => a.completado).length;
         
         // Clase de estado para badge
-        let stateClass = 'planificado';
-        if (job.estado === 'En Progreso') stateClass = 'progreso';
-        else if (job.estado === 'Seguimiento') stateClass = 'seguimiento';
-        else if (job.estado === 'Completado') stateClass = 'completado';
-        else if (job.estado === 'Cancelado') stateClass = 'cancelado';
+        let stateTagClass = 'status-planificado';
+        if (job.estado === 'En Progreso' || job.estado === 'Seguimiento') stateTagClass = 'status-progress';
+        else if (job.estado === 'Completado') stateTagClass = 'status-done';
+        else if (job.estado === 'Cancelado') stateTagClass = 'status-cancelado';
         
-        // Metadatos y badges
-        let badgesHtml = '';
-        if (job.planta) {
-            badgesHtml += `<span class="trabajo-meta-badge planta">🏢 Planta: ${escapeHtml(job.planta)}</span>`;
-        }
-        if (job.importancia) {
-            badgesHtml += `<span class="trabajo-meta-badge importancia">⭐ ${escapeHtml(job.importancia)}</span>`;
-        }
-        if (job.tipo_actividad) {
-            badgesHtml += `<span class="trabajo-meta-badge tipo">🏷️ ${escapeHtml(job.tipo_actividad)}</span>`;
-        }
+        // Subtítulo jerárquico
+        let subtitleParts = [];
+        if (job.planta) subtitleParts.push(`<span>🏢 Planta: <strong>${escapeHtml(job.planta)}</strong></span>`);
+        if (job.importancia) subtitleParts.push(`<span>⭐ ${escapeHtml(job.importancia)}</span>`);
+        if (job.tipo_actividad) subtitleParts.push(`<span>🏷️ ${escapeHtml(job.tipo_actividad)}</span>`);
         
         // Fecha de creación
         let dateFormatted = '';
@@ -2833,84 +2874,69 @@ function renderTrabajosView() {
         let subitemsHtml = '';
         if (jobTasks.length > 0 || jobActs.length > 0) {
             let taskListHtml = '';
-            jobTasks.slice(0, 3).forEach(t => {
+            jobTasks.slice(0, 2).forEach(t => {
                 taskListHtml += `
-                    <div class="trabajo-subitem-line" title="${escapeHtml(t.titulo)}">
+                    <div style="display:flex;justify-content:space-between;gap:4px;">
                         <span>📝 ${escapeHtml(t.titulo)}</span>
-                        <span class="subitem-state ${t.estado === 'Completada' ? 'done' : 'pending'}">${escapeHtml(t.estado)}</span>
+                        <span style="color:${t.estado === 'Completada' ? '#10b981' : '#f59e0b'};font-weight:600;">${escapeHtml(t.estado)}</span>
                     </div>
                 `;
             });
-            if (jobTasks.length > 3) {
-                taskListHtml += `<div class="subitem-more">+${jobTasks.length - 3} gestiones más...</div>`;
+            if (jobTasks.length > 2) {
+                taskListHtml += `<div style="color:var(--text-muted);font-size:0.65rem;">+${jobTasks.length - 2} gestiones más...</div>`;
             }
             
             let actListHtml = '';
-            jobActs.slice(0, 3).forEach(a => {
+            jobActs.slice(0, 2).forEach(a => {
                 actListHtml += `
-                    <div class="trabajo-subitem-line" title="${escapeHtml(a.titulo)}">
+                    <div style="display:flex;justify-content:space-between;gap:4px;">
                         <span>📌 ${escapeHtml(a.titulo)}</span>
-                        <span class="subitem-state ${a.completado ? 'done' : 'pending'}">${a.completado ? 'Completada' : 'Pendiente'}</span>
+                        <span style="color:${a.completado ? '#10b981' : '#f59e0b'};font-weight:600;">${a.completado ? 'Completada' : 'Pendiente'}</span>
                     </div>
                 `;
             });
-            if (jobActs.length > 3) {
-                actListHtml += `<div class="subitem-more">+${jobActs.length - 3} actividades más...</div>`;
+            if (jobActs.length > 2) {
+                actListHtml += `<div style="color:var(--text-muted);font-size:0.65rem;">+${jobActs.length - 2} actividades más...</div>`;
             }
             
             subitemsHtml = `
-                <div class="trabajo-subitems-container">
-                    <div class="trabajo-subitems-header">
-                        <span>Gestiones y Actividades vinculadas:</span>
-                    </div>
-                    ${jobTasks.length > 0 ? `<div class="subitems-block">${taskListHtml}</div>` : ''}
-                    ${jobActs.length > 0 ? `<div class="subitems-block">${actListHtml}</div>` : ''}
+                <div class="entity-subitems-preview">
+                    <div style="font-weight:700;color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Gestiones y Actividades (${jobTasks.length} / ${jobActs.length}):</div>
+                    ${taskListHtml}
+                    ${actListHtml}
                 </div>
             `;
         }
         
         card.innerHTML = `
-            <div class="trabajo-card-top">
-                <div class="trabajo-id-badge" style="background-color: ${job.color || '#3b82f6'}; color: #fff;">
-                    #${job.id}
-                </div>
-                <div class="trabajo-status-badge ${stateClass}">
-                    ${escapeHtml(job.estado || 'Planificado')}
-                </div>
-                ${dateFormatted ? `<span class="trabajo-date-label">📅 ${dateFormatted}</span>` : ''}
+            <div class="entity-card-header">
+                <span class="entity-type-badge trabajo">💼 Trabajo</span>
+                <div class="card-tag ${stateTagClass}">${escapeHtml(job.estado || 'Planificado')}</div>
             </div>
             
-            <div class="trabajo-card-title">${escapeHtml(job.titulo)}</div>
+            <h4 class="entity-title"><span class="entity-id-prefix">#${job.id}</span> - ${escapeHtml(job.titulo)}</h4>
             
-            ${job.descripcion ? `<div class="trabajo-card-desc">${escapeHtml(job.descripcion)}</div>` : ''}
+            ${subtitleParts.length > 0 ? `<div class="entity-subtitle">${subtitleParts.join(' ')}</div>` : ''}
             
-            ${job.cliente_contacto ? `<div class="trabajo-card-client">👤 Contacto: <strong>${escapeHtml(job.cliente_contacto)}</strong></div>` : ''}
+            ${job.descripcion ? `<p class="entity-desc-box">${escapeHtml(job.descripcion)}</p>` : ''}
             
-            ${badgesHtml ? `<div class="trabajo-badges-row">${badgesHtml}</div>` : ''}
-            
-            <div class="trabajo-stats-row">
-                <div class="trabajo-stat-pill" title="${pendingTasks} pendientes, ${doneTasks} completadas">
-                    <span>📝 Gestiones:</span> <strong>${jobTasks.length}</strong>
-                    <small>(${pendingTasks} pend.)</small>
-                </div>
-                <div class="trabajo-stat-pill" title="${pendingActs} pendientes, ${doneActs} completadas">
-                    <span>📌 Actividades:</span> <strong>${jobActs.length}</strong>
-                    <small>(${pendingActs} pend.)</small>
+            <div class="entity-meta">
+                ${job.cliente_contacto ? `<div class="entity-meta-row"><span>👤 Contacto:</span> <strong>${escapeHtml(job.cliente_contacto)}</strong></div>` : ''}
+                <div class="entity-meta-row" style="gap: 0.75rem;">
+                    <span title="${pendingTasks} pendientes, ${doneTasks} completadas">📝 <strong>${jobTasks.length}</strong> gestiones <small>(${pendingTasks} pend.)</small></span>
+                    <span title="${pendingActs} pendientes, ${doneActs} completadas">📌 <strong>${jobActs.length}</strong> actividades <small>(${pendingActs} pend.)</small></span>
                 </div>
             </div>
             
             ${subitemsHtml}
             
-            <div class="trabajo-card-footer">
-                <button type="button" class="btn-card-action btn-trabajo-edit" title="Editar trabajo completo">
-                    ✏️ Editar
-                </button>
-                <button type="button" class="btn-card-action btn-trabajo-add-task" title="Agregar una nueva gestión a este trabajo">
-                    📝 + Gestión
-                </button>
-                <button type="button" class="btn-card-action btn-trabajo-add-act" title="Agregar una nueva actividad a este trabajo">
-                    📌 + Actividad
-                </button>
+            <div class="entity-card-footer">
+                <span>${dateFormatted ? `📅 Creación: ${dateFormatted}` : `ID: #${job.id}`}</span>
+                <div class="entity-card-actions">
+                    <button type="button" class="btn-card-action btn-trabajo-edit" title="Editar trabajo completo">✏️ Editar</button>
+                    <button type="button" class="btn-card-action btn-trabajo-add-task" title="Agregar gestión">📝 + Gestión</button>
+                    <button type="button" class="btn-card-action btn-trabajo-add-act" title="Agregar actividad">📌 + Actividad</button>
+                </div>
             </div>
         `;
         
@@ -2961,10 +2987,24 @@ function renderCardsSearch() {
         
         // 2. Estado
         if (filterState !== 'all') {
-            const state = card.estado || 'Pendiente';
-            if (filterState === 'Completada') {
-                if (state !== 'Completada' && state !== 'Completado') return false;
+            if (filterState === 'Pendiente') {
+                if (card.cardType === 'tarea') {
+                    if (card.estado === 'Completada' || card.estado === 'Completado') return false;
+                } else if (card.cardType === 'actividad') {
+                    if (card.completado || card.estado === 'Completada' || card.estado === 'Completado') return false;
+                } else if (card.cardType === 'trabajo') {
+                    if (card.estado === 'Completado' || card.estado === 'Cancelado') return false;
+                }
+            } else if (filterState === 'Completada') {
+                if (card.cardType === 'tarea') {
+                    if (card.estado !== 'Completada' && card.estado !== 'Completado') return false;
+                } else if (card.cardType === 'actividad') {
+                    if (!card.completado && card.estado !== 'Completada' && card.estado !== 'Completado') return false;
+                } else if (card.cardType === 'trabajo') {
+                    if (card.estado !== 'Completado') return false;
+                }
             } else {
+                const state = card.estado || (card.cardType === 'actividad' ? (card.completado ? 'Completada' : 'Pendiente') : 'Pendiente');
                 if (state !== filterState) return false;
             }
         }
@@ -2994,171 +3034,189 @@ function renderCardsSearch() {
         return true;
     });
     
-    // Ordenar por fecha_inicio descendente
+    // Ordenar: primero los más recientes o por fecha
     filteredCards.sort((a, b) => {
-        const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : new Date(0);
-        const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : new Date(0);
-        return dateB - dateA;
+        const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : (a.fecha_creacion ? new Date(a.fecha_creacion) : new Date(0));
+        const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : (b.fecha_creacion ? new Date(b.fecha_creacion) : new Date(0));
+        if (dateB - dateA !== 0) return dateB - dateA;
+        return (b.id || 0) - (a.id || 0);
     });
+    
+    const counterEl = document.getElementById('cards-counter-text');
+    if (counterEl) {
+        counterEl.innerHTML = `Mostrando <strong>${filteredCards.length}</strong> de <strong>${combinedCards.length}</strong> tarjetas`;
+    }
     
     const gridContainer = document.getElementById('cards-search-grid');
     if (!gridContainer) return;
     gridContainer.innerHTML = '';
     
     if (filteredCards.length === 0) {
-        gridContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">No se encontraron tarjetas que coincidan con los criterios.</div>`;
+        gridContainer.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-primary); border-radius: 8px; border: 1px dashed var(--border-color);">
+                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔍</div>
+                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.3rem; color: var(--text-dark);">No se encontraron tarjetas</div>
+                <div style="font-size: 0.8rem;">Prueba ajustando los filtros o el texto de búsqueda.</div>
+            </div>
+        `;
         return;
     }
     
     filteredCards.forEach(card => {
         const cardEl = document.createElement('div');
-        cardEl.className = 'search-card';
         
-        let borderColor = '#3b82f6';
-        let typeLabel = 'Trabajo';
-        let typeClass = 'trabajo';
+        let priorityClass = 'priority-media';
+        const pVal = (card.importancia || card.prioridad || '').toLowerCase();
+        if (pVal === 'alta' || pVal === 'prioritario') priorityClass = 'priority-alta';
+        else if (pVal === 'baja' || pVal === 'estrategico') priorityClass = 'priority-baja';
+        
+        const isDone = (card.cardType === 'actividad' && card.completado) ||
+                       (card.cardType !== 'actividad' && (card.estado === 'Completada' || card.estado === 'Completado'));
+        if (isDone) priorityClass += ' status-done';
+        
+        cardEl.className = `entity-card ${priorityClass}`;
+        
+        let accentColor = card.color || (card.cardType === 'trabajo' ? '#0284c7' : card.cardType === 'tarea' ? '#10b981' : '#f59e0b');
+        cardEl.style.setProperty('--card-accent', accentColor);
+        
+        // Status Tag
+        let statusTagClass = 'status-pendiente';
+        let statusLabel = card.estado || 'Pendiente';
         if (card.cardType === 'actividad') {
-            borderColor = '#f59e0b';
-            typeLabel = 'Actividad';
-            typeClass = 'actividad';
+            statusLabel = card.completado ? 'Completada' : (card.estado || 'Pendiente');
+        }
+        
+        if (statusLabel === 'Completada' || statusLabel === 'Completado') {
+            statusTagClass = 'status-done';
+        } else if (statusLabel === 'En Progreso' || statusLabel === 'Seguimiento') {
+            statusTagClass = 'status-progress';
+        } else if (statusLabel === 'Planificado') {
+            statusTagClass = 'status-scheduled';
+        } else if (statusLabel === 'Cancelado') {
+            statusTagClass = 'status-cancelado';
+        }
+        
+        let typeBadge = '';
+        if (card.cardType === 'trabajo') {
+            typeBadge = `<span class="entity-type-badge trabajo">💼 Trabajo</span>`;
         } else if (card.cardType === 'tarea') {
-            borderColor = '#10b981';
-            typeLabel = 'Gestión';
-            typeClass = 'tarea';
-        }
-        cardEl.style.borderLeftColor = borderColor;
-        
-        let originHtml = '';
-        if (card.cardType === 'actividad') {
-            if (card.trabajo_id) {
-                const pJob = trabajos.find(t => t.id === card.trabajo_id);
-                if (pJob) originHtml = `<div class="search-card-origin">💼 Trab: ${escapeHtml(pJob.titulo)}</div>`;
-            }
-        } else if (card.cardType === 'tarea') {
-            if (card.trabajo_id) {
-                const pJob = trabajos.find(t => t.id === card.trabajo_id);
-                if (pJob) originHtml += `<div class="search-card-origin">💼 Trab: ${escapeHtml(pJob.titulo)}</div>`;
-            }
-            if (card.actividad_id) {
-                const pAct = actividades.find(a => a.id === card.actividad_id);
-                if (pAct) originHtml += `<div class="search-card-origin" style="color: #f59e0b;">⚙️ Act: ${escapeHtml(pAct.titulo)}</div>`;
-            }
+            typeBadge = `<span class="entity-type-badge tarea">📝 Gestión</span>`;
+        } else {
+            typeBadge = `<span class="entity-type-badge actividad">📌 Actividad</span>`;
         }
         
-        let metaHtml = '';
-        if (card.cardType === 'actividad') {
-            let dateStr = 'Sin fecha';
-            let timeStr = '';
-            if (card.fecha_inicio) {
-                const d = new Date(card.fecha_inicio);
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const year = String(d.getFullYear()).slice(-2);
-                dateStr = `${day}-${month}-${year}`;
-                
-                if (card.fecha_inicio.includes('T') && !card.fecha_inicio.endsWith('T12:00:00')) {
-                    const hour = String(d.getHours()).padStart(2, '0');
-                    const min = String(d.getMinutes()).padStart(2, '0');
-                    timeStr = `${hour}:${min}`;
-                }
-            }
-            metaHtml += `<span>📅 ${dateStr}</span>`;
-            if (timeStr) metaHtml += `<span>🕒 ${timeStr}</span>`;
-            if (card.tiempo_invertir) metaHtml += `<span>⏳ ${card.tiempo_invertir} min</span>`;
-        }
-        
-        // Planta y Prioridad/Importancia dinámica
+        // Subtitle / Jerarquía
+        let subtitleParts = [];
         if (card.planta) {
-            metaHtml += `<span>🏢 ${escapeHtml(card.planta)}</span>`;
+            subtitleParts.push(`<span>🏢 Planta: <strong>${escapeHtml(card.planta)}</strong></span>`);
         }
-        const priorityVal = card.importancia || card.prioridad;
-        if (priorityVal) {
-            metaHtml += `<span>⭐ ${escapeHtml(priorityVal)}</span>`;
+        if (card.cardType === 'actividad') {
+            if (card.trabajo_id) {
+                const pJob = trabajos.find(t => t.id === card.trabajo_id);
+                if (pJob) subtitleParts.push(`<span>💼 Trab #${pJob.id}: ${escapeHtml(pJob.titulo)}</span>`);
+            }
+            if (card.tarea_id) {
+                const pTarea = allTareas.find(t => t.id === card.tarea_id);
+                if (pTarea) subtitleParts.push(`<span>📝 Ges #${pTarea.id}: ${escapeHtml(pTarea.titulo)}</span>`);
+            }
+        } else if (card.cardType === 'tarea') {
+            if (card.trabajo_id) {
+                const pJob = trabajos.find(t => t.id === card.trabajo_id);
+                if (pJob) subtitleParts.push(`<span>💼 Trab #${pJob.id}: ${escapeHtml(pJob.titulo)}</span>`);
+            }
+        }
+        if (card.importancia || card.prioridad) {
+            subtitleParts.push(`<span>⭐ ${escapeHtml(card.importancia || card.prioridad)}</span>`);
+        }
+        if (card.tipo_actividad) {
+            subtitleParts.push(`<span>🏷️ ${escapeHtml(card.tipo_actividad)}</span>`);
         }
         
-        // Actividades relacionadas para Trabajos y Gestiones
-        let relatedActsHtml = '';
-        if (card.cardType === 'trabajo' || card.cardType === 'tarea') {
-            let relatedActs = [];
-            if (card.cardType === 'trabajo') {
-                const jobTasks = allTareas.filter(t => t.trabajo_id === card.id).map(t => t.id);
-                relatedActs = actividades.filter(act => act.trabajo_id === card.id || (act.tarea_id && jobTasks.includes(act.tarea_id)));
-            } else {
-                relatedActs = actividades.filter(act => act.tarea_id === card.id);
+        // Meta data
+        let metaRowsHtml = '';
+        if (card.fecha_inicio) {
+            const d = new Date(card.fecha_inicio);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = String(d.getFullYear()).slice(-2);
+            let dateStr = `${day}-${month}-${year}`;
+            let timeStr = '';
+            if (card.fecha_inicio.includes('T') && !card.fecha_inicio.endsWith('T12:00:00')) {
+                const hour = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                timeStr = `${hour}:${min}`;
             }
-            
-            relatedActs.sort((a, b) => {
-                const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : new Date(0);
-                const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : new Date(0);
-                return dateB - dateA;
-            });
-            
-            let actsItemsHtml = '';
-            if (relatedActs.length > 0) {
-                relatedActs.forEach(act => {
-                    let actDateStr = 'Sin fecha';
-                    let actTimeStr = '';
-                    if (act.fecha_inicio) {
-                        const d = new Date(act.fecha_inicio);
-                        const day = String(d.getDate()).padStart(2, '0');
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const year = String(d.getFullYear()).slice(-2);
-                        actDateStr = `${day}-${month}-${year}`;
-                        
-                        if (act.fecha_inicio.includes('T') && !act.fecha_inicio.endsWith('T12:00:00')) {
-                            const hour = String(d.getHours()).padStart(2, '0');
-                            const min = String(d.getMinutes()).padStart(2, '0');
-                            actTimeStr = `${hour}:${min}`;
-                        }
-                    }
-                    actsItemsHtml += `
-                        <div style="font-size: 0.7rem; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 2px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: var(--text-dark);">
-                                <span>📅 ${actDateStr} ${actTimeStr ? `🕒 ${actTimeStr}` : ''}</span>
-                                <span style="color: ${act.completado ? '#10b981' : '#eb5e28'}; font-size: 0.62rem; font-weight: bold;">
-                                    ${act.completado ? '✔️ Completada' : '⏳ Pendiente'}
-                                </span>
-                            </div>
-                            <div style="font-weight: 700; color: var(--text-dark);">${escapeHtml(act.titulo)}</div>
-                            ${act.descripcion ? `<div style="color: var(--text-muted); font-size: 0.65rem; word-break: break-word;">${escapeHtml(act.descripcion)}</div>` : ''}
-                        </div>
-                    `;
+            metaRowsHtml += `<div class="entity-meta-row"><span>📅 Fecha Prog:</span> <strong>${dateStr} ${timeStr ? `🕒 ${timeStr}` : ''}</strong></div>`;
+        }
+        if (card.tiempo_invertir) {
+            metaRowsHtml += `<div class="entity-meta-row"><span>⏳ Tiempo estimado:</span> <strong>${card.tiempo_invertir} min</strong></div>`;
+        }
+        if (card.cliente_contacto) {
+            metaRowsHtml += `<div class="entity-meta-row"><span>👤 Contacto:</span> <strong>${escapeHtml(card.cliente_contacto)}</strong></div>`;
+        }
+        
+        // Sub-items vinculados (para Trabajos y Gestiones)
+        let subitemsHtml = '';
+        if (card.cardType === 'trabajo') {
+            const jobTasks = allTareas.filter(t => t.trabajo_id === card.id);
+            const taskIds = jobTasks.map(t => t.id);
+            const jobActs = actividades.filter(a => a.trabajo_id === card.id || (a.tarea_id && taskIds.includes(a.tarea_id)));
+            if (jobTasks.length > 0 || jobActs.length > 0) {
+                let listHtml = '';
+                jobTasks.slice(0, 2).forEach(t => {
+                    listHtml += `<div style="display:flex;justify-content:space-between;gap:4px;"><span>📝 ${escapeHtml(t.titulo)}</span><span style="color:${t.estado === 'Completada' ? '#10b981' : '#f59e0b'};font-weight:600;">${escapeHtml(t.estado)}</span></div>`;
                 });
-            } else {
-                actsItemsHtml = `<div style="font-size: 0.68rem; color: var(--text-muted); padding: 4px 0;">No hay actividades relacionadas.</div>`;
+                jobActs.slice(0, 2).forEach(a => {
+                    listHtml += `<div style="display:flex;justify-content:space-between;gap:4px;"><span>📌 ${escapeHtml(a.titulo)}</span><span style="color:${a.completado ? '#10b981' : '#f59e0b'};font-weight:600;">${a.completado ? 'Completada' : 'Pendiente'}</span></div>`;
+                });
+                subitemsHtml = `
+                    <div class="entity-subitems-preview">
+                        <div style="font-weight:700;color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Gestiones y Actividades (${jobTasks.length} / ${jobActs.length}):</div>
+                        ${listHtml}
+                    </div>
+                `;
             }
-            
-            relatedActsHtml = `
-                <div class="card-related-activities" style="max-height: 120px; overflow-y: auto; margin-top: 8px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 8px; text-align: left;">
-                    <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-                        <span>📌 Actividades Relacionadas (${relatedActs.length}):</span>
+        } else if (card.cardType === 'tarea') {
+            const taskActs = actividades.filter(a => a.tarea_id === card.id);
+            if (taskActs.length > 0) {
+                let listHtml = '';
+                taskActs.slice(0, 3).forEach(a => {
+                    listHtml += `<div style="display:flex;justify-content:space-between;gap:4px;"><span>📌 ${escapeHtml(a.titulo)}</span><span style="color:${a.completado ? '#10b981' : '#f59e0b'};font-weight:600;">${a.completado ? 'Completada' : 'Pendiente'}</span></div>`;
+                });
+                if (taskActs.length > 3) {
+                    listHtml += `<div style="color:var(--text-muted);font-size:0.65rem;">+${taskActs.length - 3} actividades más...</div>`;
+                }
+                subitemsHtml = `
+                    <div class="entity-subitems-preview">
+                        <div style="font-weight:700;color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Actividades vinculadas (${taskActs.length}):</div>
+                        ${listHtml}
                     </div>
-                    <div style="display: flex; flex-direction: column;">
-                        ${actsItemsHtml}
-                    </div>
-                </div>
-            `;
+                `;
+            }
         }
-        
-        const isCompleted = (card.cardType === 'actividad' && card.completado) ||
-                            (card.cardType !== 'actividad' && (card.estado === 'Completada' || card.estado === 'Completado'));
         
         cardEl.innerHTML = `
-            <div class="search-card-header">
-                <span class="search-card-type-badge ${typeClass}">${typeLabel}</span>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    ${isCompleted ? '<span style="color: #10b981; font-weight: bold; font-size: 0.85rem;" title="Completada">✔️</span>' : ''}
-                    <span class="search-card-state">${card.estado || (card.cardType === 'actividad' ? (card.completado ? 'Completada' : 'Pendiente') : 'Pendiente')}</span>
-                </div>
+            <div class="entity-card-header">
+                ${typeBadge}
+                <div class="card-tag ${statusTagClass}">${escapeHtml(statusLabel)}</div>
             </div>
-            <div class="search-card-title">#${card.id} - ${escapeHtml(card.titulo || 'Sin Título')}</div>
-            ${originHtml}
-            <div class="search-card-desc">${escapeHtml(card.descripcion || 'Sin descripción.')}</div>
-            ${metaHtml ? `<div class="search-card-meta">${metaHtml}</div>` : ''}
-            ${relatedActsHtml}
-            <div class="search-card-actions">
-                <button class="btn-card-action btn-edit" title="Editar tarjeta">✏️ Editar</button>
-                ${card.fecha_inicio ? `<button class="btn-card-action btn-go-to" title="Ver en Calendario">📅 Ver en Calendario</button>` : ''}
+            
+            <h4 class="entity-title"><span class="entity-id-prefix">#${card.id}</span> - ${escapeHtml(card.titulo || 'Sin Título')}</h4>
+            
+            ${subtitleParts.length > 0 ? `<div class="entity-subtitle">${subtitleParts.join(' ')}</div>` : ''}
+            
+            ${card.descripcion ? `<p class="entity-desc-box">${escapeHtml(card.descripcion)}</p>` : ''}
+            
+            ${metaRowsHtml ? `<div class="entity-meta">${metaRowsHtml}</div>` : ''}
+            
+            ${subitemsHtml}
+            
+            <div class="entity-card-footer">
+                <span>${card.fecha_inicio ? `📅 ${card.fecha_inicio.substring(0, 10)}` : `ID: #${card.id}`}</span>
+                <div class="entity-card-actions">
+                    <button class="btn-card-action btn-edit" title="Editar">✏️ Editar</button>
+                    ${card.fecha_inicio ? `<button class="btn-card-action btn-go-to" title="Ver en Calendario">📅 Calendario</button>` : ''}
+                </div>
             </div>
         `;
         
@@ -3167,13 +3225,15 @@ function renderCardsSearch() {
             openEditModalForCard(card);
         });
         
-        cardEl.querySelector('.btn-edit').addEventListener('click', () => {
+        cardEl.querySelector('.btn-edit').addEventListener('click', (e) => {
+            e.stopPropagation();
             openEditModalForCard(card);
         });
         
         const goToBtn = cardEl.querySelector('.btn-go-to');
         if (goToBtn) {
-            goToBtn.addEventListener('click', () => {
+            goToBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 goToCardInCalendar(card);
             });
         }
