@@ -1,6 +1,6 @@
 # Hot reload trigger
-from fastapi import FastAPI, Depends, HTTPException, Query
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
@@ -143,15 +143,31 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+@app.middleware("http")
+async def disable_static_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Dependencia para obtener la sesión de base de datos
 def get_db():
     with Session(engine) as session:
         yield session
 
-# Redirección de la raíz a la página de inicio
+# Servir la página de inicio directamente sin caché
 @app.get("/")
 def read_root():
-    return RedirectResponse(url="/static/index.html")
+    return FileResponse(
+        "static/index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 # --- ENDPOINTS TRABAJOS ---
 

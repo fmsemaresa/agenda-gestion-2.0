@@ -938,173 +938,224 @@ worksTreeContainer.addEventListener('click', (e) => {
     container.appendChild(input);
     input.focus();
 });
-// Render Works Accordion Tree in sidebar
+// Render Works & Entities List in sidebar
+let sidebarFilterType = 'all';
+
 function renderWorksTree() {
     worksTreeContainer.innerHTML = '';
     const searchQuery = document.getElementById('search-trabajos').value;
     const sortVal = document.getElementById('sort-trabajos') ? document.getElementById('sort-trabajos').value : 'fecha_inicio_desc';
     
+    // Sincronizar botones de filtro del sidebar
+    document.querySelectorAll('#sidebar-type-filters .sidebar-filter-btn').forEach(btn => {
+        const isAct = btn.dataset.stype === sidebarFilterType;
+        btn.classList.toggle('active', isAct);
+        btn.style.background = isAct ? 'var(--accent-color)' : 'var(--bg-primary)';
+        btn.style.color = isAct ? '#fff' : 'var(--text-dark)';
+        btn.style.fontWeight = isAct ? '700' : '600';
+    });
+
     const searchWords = searchQuery.trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
     
     function matchesQuery(texts) {
         if (searchWords.length === 0) return true;
-        const combined = texts.filter(t => t).map(t => t.toLowerCase()).join(' ');
+        const combined = texts.filter(t => t).map(t => String(t).toLowerCase()).join(' ');
         return searchWords.every(word => combined.includes(word));
     }
     
-    // 1. Filtrar actividades
-    let filteredActs = [...actividades];
-    
-    // Filtro por activeFilter
-    if (activeFilter === 'pendientes') {
-        filteredActs = actividades.filter(act => !act.completado);
-    } else if (activeFilter === 'completadas') {
-        filteredActs = actividades.filter(act => act.completado);
+    // 1. Unificar Trabajos, Gestiones y Actividades con sus relaciones
+    let combined = [
+        ...trabajos.map(t => ({ ...t, cardType: 'trabajo' })),
+        ...allTareas.map(tr => ({ ...tr, cardType: 'tarea' })),
+        ...actividades.map(a => ({ ...a, cardType: 'actividad' }))
+    ].map(item => ({
+        ...item,
+        rels: getCardRelationships(item)
+    }));
+
+    // 2. Filtrar por tipo seleccionado en el sidebar
+    if (sidebarFilterType !== 'all') {
+        combined = combined.filter(item => item.cardType === sidebarFilterType);
     }
-    
-    // Filtro por búsqueda
+
+    // 3. Filtro por activeFilter (KPIs)
+    if (activeFilter === 'pendientes') {
+        combined = combined.filter(item => {
+            if (item.cardType === 'actividad') return !item.completado;
+            if (item.cardType === 'tarea') return item.estado !== 'Completada';
+            return item.estado !== 'Completado' && item.estado !== 'Cancelado';
+        });
+    } else if (activeFilter === 'completadas') {
+        combined = combined.filter(item => {
+            if (item.cardType === 'actividad') return item.completado;
+            if (item.cardType === 'tarea') return item.estado === 'Completada';
+            return item.estado === 'Completado';
+        });
+    }
+
+    // 4. Filtro por búsqueda
     if (searchWords.length > 0) {
-        filteredActs = filteredActs.filter(act => {
-            const parentJob = act.trabajo_id ? trabajos.find(t => t.id === act.trabajo_id) : null;
-            const parentTarea = act.tarea_id ? allTareas.find(t => t.id === act.tarea_id) : null;
+        combined = combined.filter(item => {
+            const { ascTrabajo, ascTarea, descTareas, descActividades } = item.rels;
             return matchesQuery([
-                act.titulo,
-                act.descripcion,
-                act.planta,
-                act.importancia,
-                act.tipo_actividad,
-                parentJob ? parentJob.titulo : '',
-                parentTarea ? parentTarea.titulo : ''
+                `#${item.id}`,
+                item.titulo,
+                item.descripcion,
+                item.planta,
+                item.importancia,
+                item.prioridad,
+                item.tipo_actividad,
+                item.cliente_contacto,
+                ascTrabajo ? ascTrabajo.titulo : '',
+                ascTarea ? ascTarea.titulo : '',
+                ...descTareas.map(t => t.titulo),
+                ...descActividades.map(a => a.titulo)
             ]);
         });
     }
-    
-    // Ordenamiento
+
+    // 5. Ordenamiento
     if (sortVal === 'fecha_creacion_desc') {
-        filteredActs.sort((a, b) => new Date(b.fecha_creacion || 0) - new Date(a.fecha_creacion || 0));
+        combined.sort((a, b) => new Date(b.fecha_creacion || 0) - new Date(a.fecha_creacion || 0));
     } else if (sortVal === 'fecha_creacion_asc') {
-        filteredActs.sort((a, b) => new Date(a.fecha_creacion || 0) - new Date(b.fecha_creacion || 0));
+        combined.sort((a, b) => new Date(a.fecha_creacion || 0) - new Date(b.fecha_creacion || 0));
     } else if (sortVal === 'importancia') {
-        const impOrder = { 'Prioritario': 1, 'Importante': 2, 'Estratégico': 3, '': 4, null: 4 };
-        filteredActs.sort((a, b) => (impOrder[a.importancia] || 4) - (impOrder[b.importancia] || 4));
+        const impOrder = { 'Prioritario': 1, 'Alta': 1, 'Importante': 2, 'Media': 2, 'Estratégico': 3, 'Baja': 3, '': 4, null: 4 };
+        combined.sort((a, b) => (impOrder[a.importancia || a.prioridad] || 4) - (impOrder[b.importancia || b.prioridad] || 4));
     } else if (sortVal === 'planta') {
         const plantOrder = { '9901': 1, '10.000': 2, 'LDV': 3, 'All': 4, '': 5, null: 5 };
-        filteredActs.sort((a, b) => (plantOrder[a.planta] || 5) - (plantOrder[b.planta] || 5));
+        combined.sort((a, b) => (plantOrder[a.planta] || 5) - (plantOrder[b.planta] || 5));
     } else if (sortVal === 'tipo_actividad') {
-        filteredActs.sort((a, b) => (a.tipo_actividad || '').localeCompare(b.tipo_actividad || ''));
+        combined.sort((a, b) => (a.tipo_actividad || '').localeCompare(b.tipo_actividad || ''));
     } else {
-        // Orden por fecha_inicio (fecha de actividad)
-        filteredActs.sort((a, b) => {
-            const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : new Date(0);
-            const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : new Date(0);
-            return dateB - dateA; // Más reciente primero
+        combined.sort((a, b) => {
+            const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : (a.fecha_creacion ? new Date(a.fecha_creacion) : new Date(0));
+            const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : (b.fecha_creacion ? new Date(b.fecha_creacion) : new Date(0));
+            return dateB - dateA;
         });
     }
-    
-    if (filteredActs.length === 0) {
-        worksTreeContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem;">No se encontraron actividades.</p>';
+
+    if (combined.length === 0) {
+        worksTreeContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem;">No se encontraron tarjetas para este filtro.</p>';
         return;
     }
-    
-    filteredActs.forEach(act => {
+
+    combined.forEach(item => {
         const div = document.createElement('div');
         div.className = 'list-task-item';
         div.style.display = 'flex';
         div.style.flexDirection = 'column';
-        div.style.gap = '4px';
-        div.style.padding = '0.6rem';
-        div.style.borderRadius = '6px';
+        div.style.alignItems = 'stretch';
+        div.style.gap = '5px';
+        div.style.padding = '0.65rem';
+        div.style.borderRadius = '8px';
         div.style.border = '1px solid var(--border-color)';
         div.style.backgroundColor = 'var(--bg-secondary)';
-        div.style.marginBottom = '0.5rem';
+        div.style.marginBottom = '0.45rem';
         div.style.cursor = 'pointer';
         div.style.transition = 'all 0.15s ease';
-        div.style.borderLeft = `3px solid ${act.completado ? '#10b981' : '#f59e0b'}`;
-        
-        if (act.completado) {
-            div.style.opacity = '0.7';
-            div.style.backgroundColor = 'rgba(16, 185, 129, 0.02)';
+
+        const isDone = (item.cardType === 'actividad' && item.completado) ||
+                       (item.cardType !== 'actividad' && (item.estado === 'Completada' || item.estado === 'Completado'));
+
+        const borderColor = item.cardType === 'trabajo'
+            ? (item.color || '#0284c7')
+            : item.cardType === 'tarea'
+                ? '#10b981'
+                : (item.completado ? '#10b981' : '#f59e0b');
+        div.style.borderLeft = `4px solid ${borderColor}`;
+
+        if (isDone) {
+            div.style.opacity = '0.78';
+            div.style.backgroundColor = '#f8fafc';
         }
-        
-        let dateStr = 'Sin fecha';
-        let timeStr = '';
-        if (act.fecha_inicio) {
-            const d = new Date(act.fecha_inicio);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = String(d.getFullYear()).slice(-2);
-            dateStr = `${day}-${month}-${year}`;
-            
-            if (act.fecha_inicio.includes('T') && !act.fecha_inicio.endsWith('T12:00:00')) {
-                const hour = String(d.getHours()).padStart(2, '0');
-                const min = String(d.getMinutes()).padStart(2, '0');
-                timeStr = `${hour}:${min}`;
+
+        let typeBadgeHtml = '';
+        if (item.cardType === 'trabajo') {
+            typeBadgeHtml = `<span class="entity-type-badge trabajo" style="font-size:0.6rem;padding:1px 5px;">💼 Trab #${item.id}</span>`;
+        } else if (item.cardType === 'tarea') {
+            typeBadgeHtml = `<span class="entity-type-badge tarea" style="font-size:0.6rem;padding:1px 5px;">📝 Ges #${item.id}</span>`;
+        } else {
+            typeBadgeHtml = `<span class="entity-type-badge actividad" style="font-size:0.6rem;padding:1px 5px;">📌 Act #${item.id}</span>`;
+        }
+
+        // Relaciones Ascendentes y Descendentes
+        const { ascTrabajo, ascTarea, descTareas, descActividades } = item.rels;
+        let relHtml = '';
+
+        if (item.cardType === 'trabajo') {
+            if (descTareas.length > 0 || descActividades.length > 0) {
+                relHtml = `<div style="font-size:0.65rem;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;padding:3px 6px;border-radius:4px;color:#047857;font-weight:600;">⬇️ Descendente: 📝 ${descTareas.length} Gestiones · 📌 ${descActividades.length} Actividades</div>`;
+            } else {
+                relHtml = `<div style="font-size:0.63rem;color:var(--text-muted);font-style:italic;">⬇️ Sin elementos descendentes asociados</div>`;
+            }
+        } else if (item.cardType === 'tarea') {
+            const ascPart = ascTrabajo
+                ? `<div style="font-size:0.65rem;background:rgba(2,132,199,0.08);border-left:2px solid #0284c7;padding:2px 6px;border-radius:4px;color:#0369a1;font-weight:600;">⬆️ Ascendente: 💼 Trab #${ascTrabajo.id} - ${escapeHtml(ascTrabajo.titulo)}</div>`
+                : `<div style="font-size:0.63rem;color:var(--text-muted);font-style:italic;">⬆️ Sin relación ascendente (Gestión Independiente)</div>`;
+            const descPart = descActividades.length > 0
+                ? `<div style="font-size:0.65rem;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;padding:2px 6px;border-radius:4px;color:#047857;font-weight:600;">⬇️ Descendente: 📌 ${descActividades.length} Actividades vinculadas</div>`
+                : `<div style="font-size:0.63rem;color:var(--text-muted);font-style:italic;">⬇️ Sin actividades descendentes</div>`;
+            relHtml = `<div style="display:flex;flex-direction:column;gap:3px;">${ascPart}${descPart}</div>`;
+        } else {
+            if (ascTrabajo || ascTarea) {
+                const chain = [];
+                if (ascTrabajo) chain.push(`💼 Trab #${ascTrabajo.id}: ${escapeHtml(ascTrabajo.titulo)}`);
+                if (ascTarea) chain.push(`📝 Ges #${ascTarea.id}: ${escapeHtml(ascTarea.titulo)}`);
+                relHtml = `<div style="font-size:0.65rem;background:rgba(2,132,199,0.08);border-left:2px solid #0284c7;padding:3px 6px;border-radius:4px;color:#0369a1;font-weight:600;">⬆️ Ascendente: ${chain.join(' ➔ ')}</div>`;
+            } else {
+                relHtml = `<div style="font-size:0.63rem;color:var(--text-muted);font-style:italic;">⬆️ Sin relación ascendente (Actividad Independiente)</div>`;
             }
         }
-        
-        // Buscar Trabajo y Gestión padres
-        const parentJob = act.trabajo_id ? trabajos.find(t => t.id === act.trabajo_id) : null;
-        const parentTarea = act.tarea_id ? allTareas.find(t => t.id === act.tarea_id) : null;
-        
-        let parentHtml = '';
-        if (parentJob) {
-            parentHtml += `<span style="font-size: 0.65rem; color: var(--accent-color); font-weight: 700;">💼 Trab: ${escapeHtml(parentJob.titulo)}</span>`;
-        }
-        if (parentTarea) {
-            parentHtml += `<span style="font-size: 0.65rem; color: #10b981; font-weight: 700; ${parentJob ? 'margin-left: 6px;' : ''}">📝 Ges: ${escapeHtml(parentTarea.titulo)}</span>`;
-        }
-        
+
         let metaTagsHtml = '';
-        if (act.planta) {
-            metaTagsHtml += `<span style="font-size: 0.62rem; background: #e2e8f0; color: #475569; padding: 2px 5px; border-radius: 4px; font-weight: 600;">🏢 ${escapeHtml(act.planta)}</span>`;
+        if (item.planta) {
+            metaTagsHtml += `<span style="font-size: 0.6rem; background: #e2e8f0; color: #475569; padding: 1px 5px; border-radius: 4px; font-weight: 600;">🏢 ${escapeHtml(item.planta)}</span>`;
         }
-        if (act.importancia) {
-            metaTagsHtml += `<span style="font-size: 0.62rem; background: #fef3c7; color: #d97706; padding: 2px 5px; border-radius: 4px; font-weight: 600;">⭐ ${escapeHtml(act.importancia)}</span>`;
+        if (item.importancia || item.prioridad) {
+            metaTagsHtml += `<span style="font-size: 0.6rem; background: #fef3c7; color: #d97706; padding: 1px 5px; border-radius: 4px; font-weight: 600;">⭐ ${escapeHtml(item.importancia || item.prioridad)}</span>`;
         }
-        if (act.tipo_actividad) {
-            metaTagsHtml += `<span style="font-size: 0.62rem; background: #dbeafe; color: #2563eb; padding: 2px 5px; border-radius: 4px; font-weight: 600;">⚙️ ${escapeHtml(act.tipo_actividad)}</span>`;
+        if (item.tipo_actividad) {
+            metaTagsHtml += `<span style="font-size: 0.6rem; background: #dbeafe; color: #2563eb; padding: 1px 5px; border-radius: 4px; font-weight: 600;">🏷️ ${escapeHtml(item.tipo_actividad)}</span>`;
         }
-        
+
+        const stateText = item.cardType === 'actividad' ? (item.completado ? 'Completado' : (item.estado || 'Planificado')) : (item.estado || '');
+
         div.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                    <input type="checkbox" class="act-tree-checkbox" ${act.completado ? 'checked' : ''} style="cursor: pointer; transform: scale(1.05);">
-                    <span style="font-size: 0.68rem; font-weight: bold; color: var(--text-muted);">
-                        📅 ${dateStr} ${timeStr ? `🕒 ${timeStr}` : ''}
-                    </span>
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                    ${item.cardType === 'actividad' ? `<input type="checkbox" class="act-tree-checkbox" ${item.completado ? 'checked' : ''} style="cursor: pointer;">` : ''}
+                    ${typeBadgeHtml}
                 </div>
-                <span style="font-size: 0.62rem; font-weight: bold; color: ${act.completado ? '#10b981' : '#eb5e28'};">
-                    ${act.completado ? '✔️' : '⏳'}
+                <span style="font-size: 0.62rem; font-weight: 700; color: ${isDone ? '#10b981' : '#64748b'};">
+                    ${isDone ? '✔️ ' : ''}${escapeHtml(stateText)}
                 </span>
             </div>
-            <div style="font-weight: 700; font-size: 0.76rem; color: var(--text-dark); word-break: break-word; line-height: 1.25; margin-top: 2px;">
-                📌 #${act.id} - ${escapeHtml(act.titulo)}
+            <div style="font-weight: 700; font-size: 0.78rem; color: var(--text-dark); word-break: break-word; line-height: 1.25;">
+                ${escapeHtml(item.titulo)}
             </div>
-            ${parentHtml ? `<div style="display: flex; align-items: center; flex-wrap: wrap; margin-top: 1px;">${parentHtml}</div>` : ''}
-            ${act.descripcion ? `<div style="font-size: 0.68rem; color: var(--text-muted); word-break: break-word; line-height: 1.3; margin-top: 2px;">${escapeHtml(act.descripcion)}</div>` : ''}
-            ${metaTagsHtml ? `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 4px;">${metaTagsHtml}</div>` : ''}
+            ${item.descripcion ? `<div style="font-size: 0.68rem; color: var(--text-muted); word-break: break-word; line-height: 1.3;">${escapeHtml(item.descripcion)}</div>` : ''}
+            ${relHtml}
+            ${metaTagsHtml ? `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 2px;">${metaTagsHtml}</div>` : ''}
         `;
-        
-        // Event Listeners
-        div.querySelector('.act-tree-checkbox').addEventListener('click', async (e) => {
-            e.stopPropagation();
-            act.completado = e.target.checked;
-            act.estado = act.completado ? 'Completado' : 'Planificado';
-            
-            await fetch(`/api/actividades/${act.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(act)
+
+        const cb = div.querySelector('.act-tree-checkbox');
+        if (cb) {
+            cb.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                item.completado = e.target.checked;
+                item.estado = item.completado ? 'Completado' : 'Planificado';
+                await updateActividadOnServer(item);
+                await fetchData();
+                renderAll();
             });
-            await fetchData();
-            renderAll();
-        });
-        
+        }
+
         div.addEventListener('click', (e) => {
             if (e.target.closest('.act-tree-checkbox')) return;
-            openEditActividadModal(act.id);
+            openEditModalForCard(item);
         });
-        
+
         worksTreeContainer.appendChild(div);
     });
 }
@@ -1572,11 +1623,17 @@ function setupEventListeners() {
         renderCalendar();
     });
     
-    // Search & Sort inputs
+    // Search & Sort inputs & Sidebar type filter buttons
     document.getElementById('search-trabajos').addEventListener('input', renderWorksTree);
     if (document.getElementById('sort-trabajos')) {
         document.getElementById('sort-trabajos').addEventListener('change', renderWorksTree);
     }
+    document.querySelectorAll('#sidebar-type-filters .sidebar-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            sidebarFilterType = btn.dataset.stype || 'all';
+            renderWorksTree();
+        });
+    });
     
     // Add Buttons clicks
     document.getElementById('btn-nuevo-trabajo').addEventListener('click', () => openCreateTrabajoModal());

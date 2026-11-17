@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda & Gestión 2.0 - Software FM</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=36">
+    <link rel="stylesheet" href="/static/css/style.css?v=37">
 </head>
 <body>
 
@@ -78,7 +78,7 @@
                         <button id="view-month" class="view-tab active">Mes</button>
                         <button id="view-week" class="view-tab">Semana</button>
                         <button id="view-day" class="view-tab">Día</button>
-                        <button id="view-cards" class="view-tab">📋 Listado</button>
+                        <button id="view-cards" class="view-tab">📋 Listado de Tarjetas</button>
                     </div>
                     <div class="calendar-controls" id="calendar-controls-wrapper">
                         <button id="cal-prev-month" class="btn-cal-nav">◀</button>
@@ -271,11 +271,19 @@
                 <!-- Works & Tasks Tree -->
                 <div class="panel works-panel">
                     <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
-                        <h2 class="panel-title" style="font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">📌 Estructura de Actividades</h2>
-                        <div style="display: flex; align-items: center; gap: 0.4rem; justify-content: space-between; margin-top: 0.25rem;">
+                        <h2 class="panel-title" style="font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+                            <span>📋 Listado & Estructura</span>
+                        </h2>
+                        <div class="sidebar-type-filters" id="sidebar-type-filters" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem; margin-top: 0.15rem;">
+                            <button type="button" class="sidebar-filter-btn active" data-stype="all" style="font-size: 0.68rem; padding: 0.3rem 0.2rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--accent-color); color: #fff; font-weight: 700; cursor: pointer;">Todos</button>
+                            <button type="button" class="sidebar-filter-btn" data-stype="trabajo" style="font-size: 0.68rem; padding: 0.3rem 0.2rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-dark); font-weight: 600; cursor: pointer;">💼 Trab.</button>
+                            <button type="button" class="sidebar-filter-btn" data-stype="tarea" style="font-size: 0.68rem; padding: 0.3rem 0.2rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-dark); font-weight: 600; cursor: pointer;">📝 Gest.</button>
+                            <button type="button" class="sidebar-filter-btn" data-stype="actividad" style="font-size: 0.68rem; padding: 0.3rem 0.2rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-dark); font-weight: 600; cursor: pointer;">📌 Act.</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.4rem; justify-content: space-between; margin-top: 0.2rem;">
                             <label for="sort-trabajos" style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; margin: 0; white-space: nowrap;">Ordenar por:</label>
                             <select id="sort-trabajos" class="form-control" style="font-size: 0.7rem; padding: 0.15rem 0.3rem; height: auto; margin: 0; flex: 1;">
-                                <option value="fecha_inicio_desc">Fecha Actividad (Nuevo primero)</option>
+                                <option value="fecha_inicio_desc">Fecha / Recientes primero</option>
                                 <option value="fecha_creacion_desc">Creación (Nuevo primero)</option>
                                 <option value="fecha_creacion_asc">Creación (Antiguo primero)</option>
                                 <option value="importancia">Por Importancia</option>
@@ -285,7 +293,7 @@
                         </div>
                     </div>
                     <div class="search-wrapper">
-                        <input type="text" id="search-trabajos" placeholder="🔍 Buscar actividad por título, descripción, planta..." class="form-control">
+                        <input type="text" id="search-trabajos" placeholder="🔍 Filtrar por título, descripción, planta, relación..." class="form-control">
                     </div>
                     <div class="works-list" id="works-tree-container">
                         <!-- Loaded dynamically -->
@@ -665,6 +673,6 @@
     </div>
 
     <!-- Cargar archivo Javascript -->
-    <script src="/static/js/app.js?v=36"></script>
+    <script src="/static/js/app.js?v=37"></script>
 </body>
 </html>
