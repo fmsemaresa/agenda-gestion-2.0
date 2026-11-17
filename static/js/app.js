@@ -228,7 +228,7 @@ function renderCalendar() {
     
     // Sincronizar estado visual de todas las tarjetas KPI superiores
     document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
-    if (currentView === 'trabajos' || activeFilter === 'trabajos') {
+    if (currentView === 'trabajos' || (currentView === 'cards' && activeFilter === 'trabajos')) {
         document.getElementById('kpi-total-trabajos')?.classList.add('active-filter');
     } else if (currentView === 'cards') {
         if (activeFilter === 'pendientes') {
@@ -240,24 +240,16 @@ function renderCalendar() {
         }
     }
     
-    if (currentView === 'trabajos') {
-        if (panelTitle) panelTitle.textContent = '💼 Listado de Trabajos';
-        if (calendarControls) calendarControls.style.display = 'none';
-        if (calendarViewContainer) calendarViewContainer.style.display = 'none';
-        if (cardsViewContainer) cardsViewContainer.style.display = 'none';
-        if (weekdaysHeader) weekdaysHeader.classList.add('hidden');
-        if (trabajosViewContainer) {
-            trabajosViewContainer.style.display = 'flex';
-            trabajosViewContainer.style.flexDirection = 'column';
-        }
-        renderTrabajosView();
-        return;
-    } else if (currentView === 'cards') {
+    if (currentView === 'trabajos' || currentView === 'cards') {
+        currentView = 'cards';
+        const currentTabBtnCards = document.getElementById('view-cards');
+        if (currentTabBtnCards) currentTabBtnCards.classList.add('active');
         if (panelTitle) {
-            if (activeFilter === 'pendientes') panelTitle.textContent = '⏳ Gestiones Pendientes';
+            if (activeFilter === 'trabajos') panelTitle.textContent = '💼 Listado de Trabajos';
+            else if (activeFilter === 'pendientes') panelTitle.textContent = '⏳ Gestiones Pendientes';
             else if (activeFilter === 'completadas') panelTitle.textContent = '✓ Gestiones Completadas';
             else if (activeFilter === 'todos') panelTitle.textContent = '📌 Actividades Pendientes';
-            else panelTitle.textContent = '🔍 Buscar Tarjetas';
+            else panelTitle.textContent = '📋 Listado de Trabajos, Gestiones y Actividades';
         }
         if (calendarControls) calendarControls.style.display = 'none';
         if (calendarViewContainer) calendarViewContainer.style.display = 'none';
@@ -1707,13 +1699,15 @@ function setupEventListeners() {
     const viewTrabajosBtn = document.getElementById('view-trabajos');
     if (viewTrabajosBtn) {
         viewTrabajosBtn.addEventListener('click', () => {
-            currentView = 'trabajos';
+            currentView = 'cards';
             activeFilter = 'trabajos';
+            const filterTypeSelect = document.getElementById('cards-filter-type');
+            if (filterTypeSelect) filterTypeSelect.value = 'trabajo';
             renderAll();
         });
     }
 
-    // Pestaña de buscar tarjetas
+    // Pestaña de Listado de Tarjetas Rectangulares
     const viewCardsBtn = document.getElementById('view-cards');
     if (viewCardsBtn) {
         viewCardsBtn.addEventListener('click', () => {
@@ -1721,11 +1715,30 @@ function setupEventListeners() {
             activeFilter = null;
             const filterTypeSelect = document.getElementById('cards-filter-type');
             const filterStateSelect = document.getElementById('cards-filter-state');
+            const filterRelationSelect = document.getElementById('cards-filter-relation');
             if (filterTypeSelect) filterTypeSelect.value = 'all';
             if (filterStateSelect) filterStateSelect.value = 'all';
+            if (filterRelationSelect) filterRelationSelect.value = 'all';
             renderAll();
         });
     }
+
+    // Botones de filtro rápido por tipo (Pills: Todos, Trabajos, Gestiones, Actividades)
+    document.querySelectorAll('#listado-type-pills .type-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            const selectedType = pill.dataset.type || 'all';
+            const filterTypeSelect = document.getElementById('cards-filter-type');
+            if (filterTypeSelect) {
+                filterTypeSelect.value = selectedType;
+            }
+            if (selectedType === 'trabajo') {
+                activeFilter = 'trabajos';
+            } else {
+                activeFilter = null;
+            }
+            renderAll();
+        });
+    });
 
     // Inputs de búsqueda y filtros en Vista Trabajos
     const trabajosSearchInput = document.getElementById('trabajos-search-input');
@@ -1753,7 +1766,7 @@ function setupEventListeners() {
         btnCrearTrabajoFromView.addEventListener('click', () => openCreateTrabajoModal());
     }
 
-    // Inputs de búsqueda y filtros en Vista Buscar Tarjetas
+    // Inputs de búsqueda y filtros en Vista Listado de Tarjetas Rectangulares
     const cardsSearchInput = document.getElementById('cards-search-input');
     if (cardsSearchInput) {
         cardsSearchInput.addEventListener('input', renderCardsSearch);
@@ -1762,6 +1775,10 @@ function setupEventListeners() {
     if (cardsFilterType) {
         cardsFilterType.addEventListener('change', renderCardsSearch);
     }
+    const cardsFilterRelation = document.getElementById('cards-filter-relation');
+    if (cardsFilterRelation) {
+        cardsFilterRelation.addEventListener('change', renderCardsSearch);
+    }
     const cardsFilterState = document.getElementById('cards-filter-state');
     if (cardsFilterState) {
         cardsFilterState.addEventListener('change', renderCardsSearch);
@@ -1769,6 +1786,14 @@ function setupEventListeners() {
     const cardsFilterPlanta = document.getElementById('cards-filter-planta');
     if (cardsFilterPlanta) {
         cardsFilterPlanta.addEventListener('change', renderCardsSearch);
+    }
+    const cardsFilterImportancia = document.getElementById('cards-filter-importancia');
+    if (cardsFilterImportancia) {
+        cardsFilterImportancia.addEventListener('change', renderCardsSearch);
+    }
+    const cardsSortBy = document.getElementById('cards-sort-by');
+    if (cardsSortBy) {
+        cardsSortBy.addEventListener('change', renderCardsSearch);
     }
     
     // Quick Add Activity to Trabajo from Trabajo Modal
@@ -1790,19 +1815,24 @@ function setupEventListeners() {
     }
 }
 
-// Toggle filters based on KPI clicks (Despliegue similar a Gestión de OTs)
+// Toggle filters based on KPI clicks (Despliegue en Vista Listado de Tarjetas Rectangulares)
 function toggleKPIFilter(filterType) {
     const filterTypeSelect = document.getElementById('cards-filter-type');
     const filterStateSelect = document.getElementById('cards-filter-state');
+    const filterRelationSelect = document.getElementById('cards-filter-relation');
     const searchInput = document.getElementById('cards-search-input');
     
     if (filterType === 'trabajos') {
-        if (currentView === 'trabajos') {
+        if (currentView === 'cards' && activeFilter === 'trabajos') {
             currentView = 'month';
             activeFilter = null;
         } else {
-            currentView = 'trabajos';
+            currentView = 'cards';
             activeFilter = 'trabajos';
+            if (filterTypeSelect) filterTypeSelect.value = 'trabajo';
+            if (filterStateSelect) filterStateSelect.value = 'all';
+            if (filterRelationSelect) filterRelationSelect.value = 'all';
+            if (searchInput) searchInput.value = '';
         }
     } else if (filterType === 'pendientes') {
         if (currentView === 'cards' && activeFilter === 'pendientes') {
@@ -1813,6 +1843,7 @@ function toggleKPIFilter(filterType) {
             activeFilter = 'pendientes';
             if (filterTypeSelect) filterTypeSelect.value = 'tarea';
             if (filterStateSelect) filterStateSelect.value = 'Pendiente';
+            if (filterRelationSelect) filterRelationSelect.value = 'all';
             if (searchInput) searchInput.value = '';
         }
     } else if (filterType === 'completadas') {
@@ -1824,6 +1855,7 @@ function toggleKPIFilter(filterType) {
             activeFilter = 'completadas';
             if (filterTypeSelect) filterTypeSelect.value = 'tarea';
             if (filterStateSelect) filterStateSelect.value = 'Completada';
+            if (filterRelationSelect) filterRelationSelect.value = 'all';
             if (searchInput) searchInput.value = '';
         }
     } else if (filterType === 'todos') {
@@ -1835,6 +1867,7 @@ function toggleKPIFilter(filterType) {
             activeFilter = 'todos';
             if (filterTypeSelect) filterTypeSelect.value = 'actividad';
             if (filterStateSelect) filterStateSelect.value = 'Pendiente';
+            if (filterRelationSelect) filterRelationSelect.value = 'all';
             if (searchInput) searchInput.value = '';
         }
     }
@@ -2965,27 +2998,100 @@ function renderTrabajosView() {
     });
 }
 
-// --- VISTA BUSCADOR DE TARJETAS Y FILTROS ---
+// --- VISTA LISTADO DE TARJETAS RECTANGULARES Y FILTROS ---
+
+function getCardRelationships(card) {
+    let ascTrabajo = null;
+    let ascTarea = null;
+    let descTareas = [];
+    let descActividades = [];
+
+    if (card.cardType === 'trabajo') {
+        descTareas = allTareas.filter(t => t.trabajo_id === card.id);
+        const taskIds = descTareas.map(t => t.id);
+        descActividades = actividades.filter(a => a.trabajo_id === card.id || (a.tarea_id && taskIds.includes(a.tarea_id)));
+    } else if (card.cardType === 'tarea') {
+        if (card.trabajo_id) {
+            ascTrabajo = trabajos.find(t => t.id === card.trabajo_id) || null;
+        }
+        descActividades = actividades.filter(a => a.tarea_id === card.id);
+    } else if (card.cardType === 'actividad') {
+        if (card.tarea_id) {
+            ascTarea = allTareas.find(t => t.id === card.tarea_id) || null;
+        }
+        if (card.trabajo_id) {
+            ascTrabajo = trabajos.find(t => t.id === card.trabajo_id) || null;
+        } else if (ascTarea && ascTarea.trabajo_id) {
+            ascTrabajo = trabajos.find(t => t.id === ascTarea.trabajo_id) || null;
+        }
+    }
+
+    const hasAsc = Boolean(ascTrabajo || ascTarea);
+    const hasDesc = descTareas.length > 0 || descActividades.length > 0;
+
+    return {
+        ascTrabajo,
+        ascTarea,
+        descTareas,
+        descActividades,
+        hasAsc,
+        hasDesc
+    };
+}
 
 function renderCardsSearch() {
     const searchQuery = (document.getElementById('cards-search-input')?.value || '').toLowerCase().trim();
     const filterType = document.getElementById('cards-filter-type')?.value || 'all';
+    const filterRelation = document.getElementById('cards-filter-relation')?.value || 'all';
     const filterState = document.getElementById('cards-filter-state')?.value || 'all';
     const filterPlanta = document.getElementById('cards-filter-planta')?.value || 'all';
-    
+    const filterImportancia = document.getElementById('cards-filter-importancia')?.value || 'all';
+    const sortBy = document.getElementById('cards-sort-by')?.value || 'recent';
+
+    // Sincronizar estado activo de los botones pill de tipo
+    document.querySelectorAll('#listado-type-pills .type-pill').forEach(pill => {
+        if (pill.dataset.type === filterType) {
+            pill.classList.add('active');
+        } else {
+            pill.classList.remove('active');
+        }
+    });
+
+    // Actualizar contadores en los botones pill
+    const totalCount = trabajos.length + allTareas.length + actividades.length;
+    const elCountAll = document.getElementById('pill-count-all');
+    const elCountTrabajo = document.getElementById('pill-count-trabajo');
+    const elCountTarea = document.getElementById('pill-count-tarea');
+    const elCountActividad = document.getElementById('pill-count-actividad');
+    if (elCountAll) elCountAll.textContent = totalCount;
+    if (elCountTrabajo) elCountTrabajo.textContent = trabajos.length;
+    if (elCountTarea) elCountTarea.textContent = allTareas.length;
+    if (elCountActividad) elCountActividad.textContent = actividades.length;
+
     const combinedCards = [
         ...trabajos.map(t => ({ ...t, cardType: 'trabajo' })),
-        ...actividades.map(a => ({ ...a, cardType: 'actividad' })),
-        ...allTareas.map(tr => ({ ...tr, cardType: 'tarea' }))
-    ];
-    
+        ...allTareas.map(tr => ({ ...tr, cardType: 'tarea' })),
+        ...actividades.map(a => ({ ...a, cardType: 'actividad' }))
+    ].map(c => ({
+        ...c,
+        rels: getCardRelationships(c)
+    }));
+
     const filteredCards = combinedCards.filter(card => {
         // 1. Tipo
         if (filterType !== 'all' && card.cardType !== filterType) {
             return false;
         }
-        
-        // 2. Estado
+
+        // 2. Relación Ascendente / Descendente
+        if (filterRelation !== 'all') {
+            if (filterRelation === 'has_asc' && !card.rels.hasAsc) return false;
+            if (filterRelation === 'has_desc' && !card.rels.hasDesc) return false;
+            if (filterRelation === 'has_any' && !card.rels.hasAsc && !card.rels.hasDesc) return false;
+            if (filterRelation === 'independent' && (card.rels.hasAsc || card.rels.hasDesc)) return false;
+        }
+
+        // 3. Estado
         if (filterState !== 'all') {
             if (filterState === 'Pendiente') {
                 if (card.cardType === 'tarea') {
@@ -3008,237 +3114,463 @@ function renderCardsSearch() {
                 if (state !== filterState) return false;
             }
         }
-        
-        // 3. Planta
+
+        // 4. Planta
         if (filterPlanta !== 'all') {
             if ((card.planta || '').toLowerCase() !== filterPlanta.toLowerCase()) {
                 return false;
             }
         }
-        
-        // 4. Texto de búsqueda
+
+        // 5. Importancia / Prioridad
+        if (filterImportancia !== 'all') {
+            const imp = (card.importancia || '').toLowerCase();
+            const prio = (card.prioridad || '').toLowerCase();
+            if (filterImportancia === 'Prioritario') {
+                if (imp !== 'prioritario' && prio !== 'alta') return false;
+            } else if (filterImportancia === 'Importante') {
+                if (imp !== 'importante' && prio !== 'media') return false;
+            } else if (filterImportancia === 'Estratégico') {
+                if (imp !== 'estratégico' && imp !== 'estrategico' && prio !== 'baja') return false;
+            }
+        }
+
+        // 6. Texto de búsqueda (incluye títulos de relaciones ascendentes/descendentes)
         if (searchQuery) {
+            const idStr = `#${card.id}`;
+            const matchId = idStr.includes(searchQuery) || String(card.id) === searchQuery;
             const matchTitle = (card.titulo || '').toLowerCase().includes(searchQuery);
             const matchDesc = (card.descripcion || '').toLowerCase().includes(searchQuery);
             const matchNota = (card.nota || '').toLowerCase().includes(searchQuery);
             const matchPlanta = (card.planta || '').toLowerCase().includes(searchQuery);
-            const matchImportancia = (card.importancia || '').toLowerCase().includes(searchQuery);
+            const matchImportancia = (card.importancia || card.prioridad || '').toLowerCase().includes(searchQuery);
             const matchCliente = (card.cliente_contacto || '').toLowerCase().includes(searchQuery);
             const matchTipoAct = (card.tipo_actividad || '').toLowerCase().includes(searchQuery);
-            
-            if (!matchTitle && !matchDesc && !matchNota && !matchPlanta && !matchImportancia && !matchCliente && !matchTipoAct) {
+            const matchAscJob = card.rels.ascTrabajo && (card.rels.ascTrabajo.titulo || '').toLowerCase().includes(searchQuery);
+            const matchAscTask = card.rels.ascTarea && (card.rels.ascTarea.titulo || '').toLowerCase().includes(searchQuery);
+            const matchDescTask = card.rels.descTareas.some(t => (t.titulo || '').toLowerCase().includes(searchQuery));
+            const matchDescAct = card.rels.descActividades.some(a => (a.titulo || '').toLowerCase().includes(searchQuery));
+
+            if (!matchId && !matchTitle && !matchDesc && !matchNota && !matchPlanta && !matchImportancia &&
+                !matchCliente && !matchTipoAct && !matchAscJob && !matchAscTask && !matchDescTask && !matchDescAct) {
                 return false;
             }
         }
-        
+
         return true;
     });
-    
-    // Ordenar: primero los más recientes o por fecha
+
+    // Ordenamiento
     filteredCards.sort((a, b) => {
-        const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : (a.fecha_creacion ? new Date(a.fecha_creacion) : new Date(0));
-        const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : (b.fecha_creacion ? new Date(b.fecha_creacion) : new Date(0));
-        if (dateB - dateA !== 0) return dateB - dateA;
-        return (b.id || 0) - (a.id || 0);
+        if (sortBy === 'oldest') {
+            const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : (a.fecha_creacion ? new Date(a.fecha_creacion) : new Date(0));
+            const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : (b.fecha_creacion ? new Date(b.fecha_creacion) : new Date(0));
+            if (dateA - dateB !== 0) return dateA - dateB;
+            return (a.id || 0) - (b.id || 0);
+        } else if (sortBy === 'titulo') {
+            return (a.titulo || '').localeCompare(b.titulo || '');
+        } else if (sortBy === 'estado') {
+            return (a.estado || '').localeCompare(b.estado || '');
+        } else if (sortBy === 'importancia') {
+            const rank = (item) => {
+                const v = (item.importancia || item.prioridad || '').toLowerCase();
+                if (v === 'prioritario' || v === 'alta') return 1;
+                if (v === 'importante' || v === 'media') return 2;
+                if (v === 'estratégico' || v === 'estrategico' || v === 'baja') return 3;
+                return 4;
+            };
+            return rank(a) - rank(b);
+        } else {
+            const dateA = a.fecha_inicio ? new Date(a.fecha_inicio) : (a.fecha_creacion ? new Date(a.fecha_creacion) : new Date(0));
+            const dateB = b.fecha_inicio ? new Date(b.fecha_inicio) : (b.fecha_creacion ? new Date(b.fecha_creacion) : new Date(0));
+            if (dateB - dateA !== 0) return dateB - dateA;
+            return (b.id || 0) - (a.id || 0);
+        }
     });
-    
+
     const counterEl = document.getElementById('cards-counter-text');
     if (counterEl) {
-        counterEl.innerHTML = `Mostrando <strong>${filteredCards.length}</strong> de <strong>${combinedCards.length}</strong> tarjetas`;
+        counterEl.innerHTML = `Mostrando <strong>${filteredCards.length}</strong> de <strong>${combinedCards.length}</strong> tarjetas rectangulares`;
     }
-    
-    const gridContainer = document.getElementById('cards-search-grid');
-    if (!gridContainer) return;
-    gridContainer.innerHTML = '';
-    
+
+    const listContainer = document.getElementById('cards-search-grid');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
     if (filteredCards.length === 0) {
-        gridContainer.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-primary); border-radius: 8px; border: 1px dashed var(--border-color);">
-                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔍</div>
-                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.3rem; color: var(--text-dark);">No se encontraron tarjetas</div>
-                <div style="font-size: 0.8rem;">Prueba ajustando los filtros o el texto de búsqueda.</div>
+        listContainer.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--border-color);">
+                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📋</div>
+                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.3rem; color: var(--text-dark);">No se encontraron tarjetas para este filtro</div>
+                <div style="font-size: 0.8rem;">Prueba cambiando entre Trabajos, Gestiones o Actividades, o ajusta los filtros de búsqueda.</div>
             </div>
         `;
         return;
     }
-    
+
     filteredCards.forEach(card => {
         const cardEl = document.createElement('div');
-        
-        let priorityClass = 'priority-media';
-        const pVal = (card.importancia || card.prioridad || '').toLowerCase();
-        if (pVal === 'alta' || pVal === 'prioritario') priorityClass = 'priority-alta';
-        else if (pVal === 'baja' || pVal === 'estrategico') priorityClass = 'priority-baja';
-        
         const isDone = (card.cardType === 'actividad' && card.completado) ||
                        (card.cardType !== 'actividad' && (card.estado === 'Completada' || card.estado === 'Completado'));
-        if (isDone) priorityClass += ' status-done';
-        
-        cardEl.className = `entity-card ${priorityClass}`;
-        
-        let accentColor = card.color || (card.cardType === 'trabajo' ? '#0284c7' : card.cardType === 'tarea' ? '#10b981' : '#f59e0b');
+
+        cardEl.className = `rect-card ${isDone ? 'is-completed' : ''}`;
+        const accentColor = card.color || (card.cardType === 'trabajo' ? '#0284c7' : card.cardType === 'tarea' ? '#10b981' : '#f59e0b');
         cardEl.style.setProperty('--card-accent', accentColor);
-        
-        // Status Tag
+
+        // 1. Etiqueta de tipo y estado
+        let typeBadge = '';
+        if (card.cardType === 'trabajo') {
+            typeBadge = `<span class="entity-type-badge trabajo">💼 Trabajo #${card.id}</span>`;
+        } else if (card.cardType === 'tarea') {
+            typeBadge = `<span class="entity-type-badge tarea">📝 Gestión #${card.id}</span>`;
+        } else {
+            typeBadge = `<span class="entity-type-badge actividad">📌 Actividad #${card.id}</span>`;
+        }
+
         let statusTagClass = 'status-pendiente';
         let statusLabel = card.estado || 'Pendiente';
         if (card.cardType === 'actividad') {
-            statusLabel = card.completado ? 'Completada' : (card.estado || 'Pendiente');
+            statusLabel = card.completado ? 'Completado' : (card.estado || 'Planificado');
         }
-        
-        if (statusLabel === 'Completada' || statusLabel === 'Completado') {
-            statusTagClass = 'status-done';
-        } else if (statusLabel === 'En Progreso' || statusLabel === 'Seguimiento') {
-            statusTagClass = 'status-progress';
-        } else if (statusLabel === 'Planificado') {
-            statusTagClass = 'status-scheduled';
-        } else if (statusLabel === 'Cancelado') {
-            statusTagClass = 'status-cancelado';
-        }
-        
-        let typeBadge = '';
-        if (card.cardType === 'trabajo') {
-            typeBadge = `<span class="entity-type-badge trabajo">💼 Trabajo</span>`;
-        } else if (card.cardType === 'tarea') {
-            typeBadge = `<span class="entity-type-badge tarea">📝 Gestión</span>`;
+        if (statusLabel === 'Completada' || statusLabel === 'Completado') statusTagClass = 'status-done';
+        else if (statusLabel === 'En Progreso' || statusLabel === 'Seguimiento') statusTagClass = 'status-progress';
+        else if (statusLabel === 'Planificado') statusTagClass = 'status-scheduled';
+        else if (statusLabel === 'Cancelado') statusTagClass = 'status-cancelado';
+
+        // Indicador resumen de relación en la cabecera de la tarjeta
+        const { ascTrabajo, ascTarea, descTareas, descActividades, hasAsc, hasDesc } = card.rels;
+        let relSummaryBadge = '';
+        if (hasAsc && hasDesc) {
+            relSummaryBadge = `<span class="rect-meta-pill" style="background:rgba(14,165,233,0.12);color:#0369a1;border-color:rgba(14,165,233,0.3);">↕️ Relación Asc. y Desc.</span>`;
+        } else if (hasAsc) {
+            relSummaryBadge = `<span class="rect-meta-pill" style="background:rgba(2,132,199,0.12);color:#0369a1;border-color:rgba(2,132,199,0.3);">⬆️ Con Relación Ascendente</span>`;
+        } else if (hasDesc) {
+            relSummaryBadge = `<span class="rect-meta-pill" style="background:rgba(16,185,129,0.12);color:#047857;border-color:rgba(16,185,129,0.3);">⬇️ Con Relación Descendente</span>`;
         } else {
-            typeBadge = `<span class="entity-type-badge actividad">📌 Actividad</span>`;
+            relSummaryBadge = `<span class="rect-meta-pill" style="background:#f1f5f9;color:#64748b;">🔓 Independiente (Sin relación)</span>`;
         }
-        
-        // Subtitle / Jerarquía
-        let subtitleParts = [];
+
+        // Metadatos en píldoras
+        const metaPills = [];
         if (card.planta) {
-            subtitleParts.push(`<span>🏢 Planta: <strong>${escapeHtml(card.planta)}</strong></span>`);
+            metaPills.push(`<span class="rect-meta-pill">🏢 Planta: <strong>${escapeHtml(card.planta)}</strong></span>`);
         }
-        if (card.cardType === 'actividad') {
-            if (card.trabajo_id) {
-                const pJob = trabajos.find(t => t.id === card.trabajo_id);
-                if (pJob) subtitleParts.push(`<span>💼 Trab #${pJob.id}: ${escapeHtml(pJob.titulo)}</span>`);
-            }
-            if (card.tarea_id) {
-                const pTarea = allTareas.find(t => t.id === card.tarea_id);
-                if (pTarea) subtitleParts.push(`<span>📝 Ges #${pTarea.id}: ${escapeHtml(pTarea.titulo)}</span>`);
-            }
-        } else if (card.cardType === 'tarea') {
-            if (card.trabajo_id) {
-                const pJob = trabajos.find(t => t.id === card.trabajo_id);
-                if (pJob) subtitleParts.push(`<span>💼 Trab #${pJob.id}: ${escapeHtml(pJob.titulo)}</span>`);
-            }
+        if (card.importancia) {
+            metaPills.push(`<span class="rect-meta-pill">⭐ ${escapeHtml(card.importancia)}</span>`);
         }
-        if (card.importancia || card.prioridad) {
-            subtitleParts.push(`<span>⭐ ${escapeHtml(card.importancia || card.prioridad)}</span>`);
+        if (card.prioridad && card.cardType === 'tarea') {
+            const pIcon = card.prioridad === 'Alta' ? '🔴' : (card.prioridad === 'Baja' ? '🔵' : '🟡');
+            metaPills.push(`<span class="rect-meta-pill">${pIcon} Prioridad ${escapeHtml(card.prioridad)}</span>`);
         }
         if (card.tipo_actividad) {
-            subtitleParts.push(`<span>🏷️ ${escapeHtml(card.tipo_actividad)}</span>`);
+            metaPills.push(`<span class="rect-meta-pill">🏷️ ${escapeHtml(card.tipo_actividad)}</span>`);
         }
-        
-        // Meta data
-        let metaRowsHtml = '';
+        if (card.cliente_contacto) {
+            metaPills.push(`<span class="rect-meta-pill">👤 ${escapeHtml(card.cliente_contacto)}</span>`);
+        }
         if (card.fecha_inicio) {
             const d = new Date(card.fecha_inicio);
             const day = String(d.getDate()).padStart(2, '0');
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const year = String(d.getFullYear()).slice(-2);
-            let dateStr = `${day}-${month}-${year}`;
             let timeStr = '';
             if (card.fecha_inicio.includes('T') && !card.fecha_inicio.endsWith('T12:00:00')) {
-                const hour = String(d.getHours()).padStart(2, '0');
-                const min = String(d.getMinutes()).padStart(2, '0');
-                timeStr = `${hour}:${min}`;
+                timeStr = ` ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             }
-            metaRowsHtml += `<div class="entity-meta-row"><span>📅 Fecha Prog:</span> <strong>${dateStr} ${timeStr ? `🕒 ${timeStr}` : ''}</strong></div>`;
+            metaPills.push(`<span class="rect-meta-pill">📅 Prog: ${day}/${month}/${year}${timeStr}</span>`);
+        } else if (card.fecha_creacion) {
+            const d = new Date(card.fecha_creacion);
+            if (!isNaN(d.getTime())) {
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = String(d.getFullYear()).slice(-2);
+                metaPills.push(`<span class="rect-meta-pill">🕒 Creado: ${day}/${month}/${year}</span>`);
+            }
         }
         if (card.tiempo_invertir) {
-            metaRowsHtml += `<div class="entity-meta-row"><span>⏳ Tiempo estimado:</span> <strong>${card.tiempo_invertir} min</strong></div>`;
+            metaPills.push(`<span class="rect-meta-pill">⏳ ${escapeHtml(card.tiempo_invertir)}</span>`);
         }
-        if (card.cliente_contacto) {
-            metaRowsHtml += `<div class="entity-meta-row"><span>👤 Contacto:</span> <strong>${escapeHtml(card.cliente_contacto)}</strong></div>`;
-        }
-        
-        // Sub-items vinculados (para Trabajos y Gestiones)
-        let subitemsHtml = '';
+
+        // 2. Construcción del bloque de Relaciones Ascendentes y Descendentes según el tipo de entidad
+        let relationsHtml = '';
+
         if (card.cardType === 'trabajo') {
-            const jobTasks = allTareas.filter(t => t.trabajo_id === card.id);
-            const taskIds = jobTasks.map(t => t.id);
-            const jobActs = actividades.filter(a => a.trabajo_id === card.id || (a.tarea_id && taskIds.includes(a.tarea_id)));
-            if (jobTasks.length > 0 || jobActs.length > 0) {
-                let listHtml = '';
-                jobTasks.slice(0, 2).forEach(t => {
-                    listHtml += `<div style="display:flex;justify-content:space-between;gap:4px;"><span>📝 ${escapeHtml(t.titulo)}</span><span style="color:${t.estado === 'Completada' ? '#10b981' : '#f59e0b'};font-weight:600;">${escapeHtml(t.estado)}</span></div>`;
+            // TRABAJO: Nivel superior -> Solo aplica Relación Descendente (Gestiones y Actividades hijas)
+            if (hasDesc) {
+                let chipsHtml = '';
+                descTareas.forEach(t => {
+                    const icon = t.estado === 'Completada' ? '✔️' : '⏳';
+                    chipsHtml += `
+                        <span class="rel-chip" data-rel-type="tarea" data-rel-id="${t.id}" title="Abrir Gestión #${t.id}: ${escapeHtml(t.titulo)} (${escapeHtml(t.estado)})">
+                            <span>📝 #${t.id}</span>
+                            <span class="rel-chip-text">${escapeHtml(t.titulo)}</span>
+                            <span>${icon}</span>
+                        </span>
+                    `;
                 });
-                jobActs.slice(0, 2).forEach(a => {
-                    listHtml += `<div style="display:flex;justify-content:space-between;gap:4px;"><span>📌 ${escapeHtml(a.titulo)}</span><span style="color:${a.completado ? '#10b981' : '#f59e0b'};font-weight:600;">${a.completado ? 'Completada' : 'Pendiente'}</span></div>`;
+                descActividades.forEach(a => {
+                    const icon = a.completado ? '✔️' : '⏳';
+                    chipsHtml += `
+                        <span class="rel-chip" data-rel-type="actividad" data-rel-id="${a.id}" title="Abrir Actividad #${a.id}: ${escapeHtml(a.titulo)}">
+                            <span>📌 #${a.id}</span>
+                            <span class="rel-chip-text">${escapeHtml(a.titulo)}</span>
+                            <span>${icon}</span>
+                        </span>
+                    `;
                 });
-                subitemsHtml = `
-                    <div class="entity-subitems-preview">
-                        <div style="font-weight:700;color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Gestiones y Actividades (${jobTasks.length} / ${jobActs.length}):</div>
-                        ${listHtml}
+
+                relationsHtml = `
+                    <div class="rel-block rel-desc">
+                        <div class="rel-block-header">
+                            <span>⬇️ Relación Descendente</span>
+                            <span>📝 ${descTareas.length} Gest. · 📌 ${descActividades.length} Act.</span>
+                        </div>
+                        <div class="rel-chips-container">${chipsHtml}</div>
+                    </div>
+                `;
+            } else {
+                relationsHtml = `
+                    <div class="rel-block rel-none">
+                        <div class="rel-block-header">
+                            <span>⬇️ Relación Descendente</span>
+                            <span>0 vinculados</span>
+                        </div>
+                        <div class="rel-empty-text">Sin gestiones ni actividades descendentes asociadas.</div>
                     </div>
                 `;
             }
         } else if (card.cardType === 'tarea') {
-            const taskActs = actividades.filter(a => a.tarea_id === card.id);
-            if (taskActs.length > 0) {
-                let listHtml = '';
-                taskActs.slice(0, 3).forEach(a => {
-                    listHtml += `<div style="display:flex;justify-content:space-between;gap:4px;"><span>📌 ${escapeHtml(a.titulo)}</span><span style="color:${a.completado ? '#10b981' : '#f59e0b'};font-weight:600;">${a.completado ? 'Completada' : 'Pendiente'}</span></div>`;
+            // GESTIÓN: Nivel intermedio -> Puede tener Relación Ascendente (Trabajo Padre) y Relación Descendente (Actividades Hijas)
+            let ascBlockHtml = '';
+            if (ascTrabajo) {
+                ascBlockHtml = `
+                    <div class="rel-block rel-asc">
+                        <div class="rel-block-header">
+                            <span>⬆️ Relación Ascendente (Trabajo Padre)</span>
+                            <span>${escapeHtml(ascTrabajo.estado || '')}</span>
+                        </div>
+                        <div class="rel-chips-container">
+                            <span class="rel-chip" data-rel-type="trabajo" data-rel-id="${ascTrabajo.id}" title="Abrir Trabajo #${ascTrabajo.id}: ${escapeHtml(ascTrabajo.titulo)}">
+                                <span>💼 #${ascTrabajo.id}</span>
+                                <span class="rel-chip-text">${escapeHtml(ascTrabajo.titulo)}</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                ascBlockHtml = `
+                    <div class="rel-block rel-none">
+                        <div class="rel-block-header">
+                            <span>⬆️ Relación Ascendente</span>
+                            <span>Independiente</span>
+                        </div>
+                        <div class="rel-empty-text">Sin trabajo padre vinculado.</div>
+                    </div>
+                `;
+            }
+
+            let descBlockHtml = '';
+            if (descActividades.length > 0) {
+                let chipsHtml = '';
+                descActividades.forEach(a => {
+                    const icon = a.completado ? '✔️' : '⏳';
+                    chipsHtml += `
+                        <span class="rel-chip" data-rel-type="actividad" data-rel-id="${a.id}" title="Abrir Actividad #${a.id}: ${escapeHtml(a.titulo)}">
+                            <span>📌 #${a.id}</span>
+                            <span class="rel-chip-text">${escapeHtml(a.titulo)}</span>
+                            <span>${icon}</span>
+                        </span>
+                    `;
                 });
-                if (taskActs.length > 3) {
-                    listHtml += `<div style="color:var(--text-muted);font-size:0.65rem;">+${taskActs.length - 3} actividades más...</div>`;
+                descBlockHtml = `
+                    <div class="rel-block rel-desc">
+                        <div class="rel-block-header">
+                            <span>⬇️ Relación Descendente (Actividades)</span>
+                            <span>📌 ${descActividades.length} Act.</span>
+                        </div>
+                        <div class="rel-chips-container">${chipsHtml}</div>
+                    </div>
+                `;
+            } else {
+                descBlockHtml = `
+                    <div class="rel-block rel-none">
+                        <div class="rel-block-header">
+                            <span>⬇️ Relación Descendente</span>
+                            <span>0 actividades</span>
+                        </div>
+                        <div class="rel-empty-text">Sin actividades descendentes asociadas.</div>
+                    </div>
+                `;
+            }
+
+            relationsHtml = ascBlockHtml + descBlockHtml;
+        } else {
+            // ACTIVIDAD: Nivel operativo -> Solo aplica Relación Ascendente (hacia Gestión y/o Trabajo padre)
+            if (hasAsc) {
+                let chipsHtml = '';
+                if (ascTrabajo) {
+                    chipsHtml += `
+                        <span class="rel-chip" data-rel-type="trabajo" data-rel-id="${ascTrabajo.id}" title="Abrir Trabajo #${ascTrabajo.id}: ${escapeHtml(ascTrabajo.titulo)}">
+                            <span>💼 #${ascTrabajo.id}</span>
+                            <span class="rel-chip-text">${escapeHtml(ascTrabajo.titulo)}</span>
+                        </span>
+                    `;
                 }
-                subitemsHtml = `
-                    <div class="entity-subitems-preview">
-                        <div style="font-weight:700;color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Actividades vinculadas (${taskActs.length}):</div>
-                        ${listHtml}
+                if (ascTrabajo && ascTarea) {
+                    chipsHtml += `<span style="color:var(--text-muted);font-size:0.75rem;align-self:center;font-weight:700;">➔</span>`;
+                }
+                if (ascTarea) {
+                    chipsHtml += `
+                        <span class="rel-chip" data-rel-type="tarea" data-rel-id="${ascTarea.id}" title="Abrir Gestión #${ascTarea.id}: ${escapeHtml(ascTarea.titulo)}">
+                            <span>📝 #${ascTarea.id}</span>
+                            <span class="rel-chip-text">${escapeHtml(ascTarea.titulo)}</span>
+                        </span>
+                    `;
+                }
+
+                relationsHtml = `
+                    <div class="rel-block rel-asc">
+                        <div class="rel-block-header">
+                            <span>⬆️ Relación Ascendente (Origen)</span>
+                            <span>${ascTrabajo && ascTarea ? 'Trabajo ➔ Gestión' : (ascTrabajo ? 'Trabajo directo' : 'Gestión directa')}</span>
+                        </div>
+                        <div class="rel-chips-container">${chipsHtml}</div>
+                    </div>
+                `;
+            } else {
+                relationsHtml = `
+                    <div class="rel-block rel-none">
+                        <div class="rel-block-header">
+                            <span>⬆️ Relación Ascendente</span>
+                            <span>Independiente</span>
+                        </div>
+                        <div class="rel-empty-text">Actividad rápida / independiente (sin Trabajo ni Gestión padre).</div>
                     </div>
                 `;
             }
         }
-        
+
+        // 3. Botones de Acción según tipo
+        let actionsHtml = `<button type="button" class="btn-card-action btn-edit" title="Editar detalles">✏️ Editar</button>`;
+        if (card.cardType === 'trabajo') {
+            actionsHtml += `
+                <button type="button" class="btn-card-action btn-add-task" title="Crear Gestión en este Trabajo">📝 + Gestión</button>
+                <button type="button" class="btn-card-action btn-add-act" title="Crear Actividad en este Trabajo">📌 + Actividad</button>
+            `;
+        } else if (card.cardType === 'tarea') {
+            actionsHtml += `
+                <button type="button" class="btn-card-action btn-add-act-from-task" title="Crear Actividad en esta Gestión">📌 + Actividad</button>
+                <button type="button" class="btn-card-action btn-toggle-done" title="Cambiar estado de completitud">
+                    ${isDone ? '↩️ Reabrir' : '✓ Completar'}
+                </button>
+            `;
+        } else if (card.cardType === 'actividad') {
+            if (card.fecha_inicio) {
+                actionsHtml += `<button type="button" class="btn-card-action btn-go-to" title="Ubicar en el Calendario">📅 Calendario</button>`;
+            }
+            actionsHtml += `
+                <button type="button" class="btn-card-action btn-toggle-done" title="Marcar completada / pendiente">
+                    ${isDone ? '↩️ Reabrir' : '✓ Completar'}
+                </button>
+            `;
+        }
+
         cardEl.innerHTML = `
-            <div class="entity-card-header">
-                ${typeBadge}
-                <div class="card-tag ${statusTagClass}">${escapeHtml(statusLabel)}</div>
-            </div>
-            
-            <h4 class="entity-title"><span class="entity-id-prefix">#${card.id}</span> - ${escapeHtml(card.titulo || 'Sin Título')}</h4>
-            
-            ${subtitleParts.length > 0 ? `<div class="entity-subtitle">${subtitleParts.join(' ')}</div>` : ''}
-            
-            ${card.descripcion ? `<p class="entity-desc-box">${escapeHtml(card.descripcion)}</p>` : ''}
-            
-            ${metaRowsHtml ? `<div class="entity-meta">${metaRowsHtml}</div>` : ''}
-            
-            ${subitemsHtml}
-            
-            <div class="entity-card-footer">
-                <span>${card.fecha_inicio ? `📅 ${card.fecha_inicio.substring(0, 10)}` : `ID: #${card.id}`}</span>
-                <div class="entity-card-actions">
-                    <button class="btn-card-action btn-edit" title="Editar">✏️ Editar</button>
-                    ${card.fecha_inicio ? `<button class="btn-card-action btn-go-to" title="Ver en Calendario">📅 Calendario</button>` : ''}
+            <div class="rect-card-main">
+                <div class="rect-card-top-badges">
+                    ${typeBadge}
+                    <span class="card-tag ${statusTagClass}">${escapeHtml(statusLabel)}</span>
+                    ${relSummaryBadge}
                 </div>
+                <h4 class="rect-card-title">${escapeHtml(card.titulo || 'Sin Título')}</h4>
+                ${card.descripcion ? `<p class="rect-card-desc">${escapeHtml(card.descripcion)}</p>` : ''}
+                ${metaPills.length > 0 ? `<div class="rect-card-meta-row">${metaPills.join('')}</div>` : ''}
+            </div>
+
+            <div class="rect-card-relations">
+                ${relationsHtml}
+            </div>
+
+            <div class="rect-card-actions">
+                ${actionsHtml}
             </div>
         `;
-        
+
+        // Click en la tarjeta abre su modal de edición
         cardEl.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-card-action')) return;
+            if (e.target.closest('.btn-card-action') || e.target.closest('.rel-chip')) return;
             openEditModalForCard(card);
         });
-        
-        cardEl.querySelector('.btn-edit').addEventListener('click', (e) => {
+
+        // Click en chips de relaciones ascendentes / descendentes abre la entidad relacionada
+        cardEl.querySelectorAll('.rel-chip').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const relType = chip.dataset.relType;
+                const relId = parseInt(chip.dataset.relId);
+                if (relType === 'trabajo') openEditTrabajoModal(relId);
+                else if (relType === 'tarea') openEditTareaModal(relId);
+                else if (relType === 'actividad') openEditActividadModal(relId);
+            });
+        });
+
+        // Botón Editar
+        cardEl.querySelector('.btn-edit')?.addEventListener('click', (e) => {
             e.stopPropagation();
             openEditModalForCard(card);
         });
-        
-        const goToBtn = cardEl.querySelector('.btn-go-to');
-        if (goToBtn) {
-            goToBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                goToCardInCalendar(card);
-            });
-        }
-        
-        gridContainer.appendChild(cardEl);
+
+        // Botones de creación rápida de hijos
+        cardEl.querySelector('.btn-add-task')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCreateTareaModalForTrabajo(card.id);
+        });
+
+        cardEl.querySelector('.btn-add-act')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCreateActividadModalForTrabajo(card.id);
+        });
+
+        cardEl.querySelector('.btn-add-act-from-task')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCreateActividadModal();
+            if (card.trabajo_id) {
+                document.getElementById('actividad-trabajo').value = card.trabajo_id;
+            }
+            populateActividadTareasDropdown();
+            document.getElementById('actividad-tarea').value = card.id;
+        });
+
+        // Botón Ver en Calendario
+        cardEl.querySelector('.btn-go-to')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            goToCardInCalendar(card);
+        });
+
+        // Botón Completar / Reabrir
+        cardEl.querySelector('.btn-toggle-done')?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (card.cardType === 'actividad') {
+                const act = actividades.find(a => a.id === card.id);
+                if (act) {
+                    act.completado = !act.completado;
+                    act.estado = act.completado ? 'Completado' : 'Planificado';
+                    await updateActividadOnServer(act);
+                    await fetchData();
+                    renderAll();
+                }
+            } else if (card.cardType === 'tarea') {
+                const tarea = allTareas.find(t => t.id === card.id);
+                if (tarea) {
+                    tarea.estado = tarea.estado === 'Completada' ? 'Pendiente' : 'Completada';
+                    await updateTareaOnServer(tarea);
+                    await fetchData();
+                    renderAll();
+                }
+            }
+        });
+
+        listContainer.appendChild(cardEl);
     });
 }
 

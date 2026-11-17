@@ -24,7 +24,7 @@ echo.
 
 echo [Paso 2/3] Guardando cambios locales...
 git add .
-git commit -m "update: fix postgres driver for Render and add Trabajos view"
+git commit -m "feat: add rectangular cards list view with filters and asc/desc relationships"
 echo.
 
 echo [Paso 3/3] Sincronizando y subiendo a GitHub...

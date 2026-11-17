@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda & Gestión 2.0 - Software FM</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=35">
+    <link rel="stylesheet" href="/static/css/style.css?v=36">
 </head>
 <body>
 
@@ -78,8 +78,7 @@
                         <button id="view-month" class="view-tab active">Mes</button>
                         <button id="view-week" class="view-tab">Semana</button>
                         <button id="view-day" class="view-tab">Día</button>
-                        <button id="view-trabajos" class="view-tab">💼 Trabajos</button>
-                        <button id="view-cards" class="view-tab">🔍 Buscar Tarjetas</button>
+                        <button id="view-cards" class="view-tab">📋 Listado</button>
                     </div>
                     <div class="calendar-controls" id="calendar-controls-wrapper">
                         <button id="cal-prev-month" class="btn-cal-nav">◀</button>
@@ -159,30 +158,58 @@
                     </div>
                 </div>
 
-                <!-- Vista de Tarjetas y Búsqueda -->
+                <!-- Vista de Listado de Tarjetas Rectangulares -->
                 <div class="cards-view-wrapper" id="cards-view-container" style="display: none; padding: 1rem;">
+                    <!-- Botones de Filtro Rápido por Tipo de Entidad -->
+                    <div class="listado-type-pills" id="listado-type-pills">
+                        <button type="button" class="type-pill active" data-type="all">
+                            <span>🗂️</span> Todos <span class="pill-count" id="pill-count-all">0</span>
+                        </button>
+                        <button type="button" class="type-pill pill-trabajo" data-type="trabajo">
+                            <span>💼</span> Trabajos <span class="pill-count" id="pill-count-trabajo">0</span>
+                        </button>
+                        <button type="button" class="type-pill pill-tarea" data-type="tarea">
+                            <span>📝</span> Gestiones <span class="pill-count" id="pill-count-tarea">0</span>
+                        </button>
+                        <button type="button" class="type-pill pill-actividad" data-type="actividad">
+                            <span>📌</span> Actividades <span class="pill-count" id="pill-count-actividad">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Barra de Búsqueda y Filtros Avanzados -->
                     <div class="cards-filter-bar">
-                        <div class="form-group" style="flex: 2; min-width: 250px;">
-                            <input type="text" id="cards-search-input" placeholder="🔍 Buscar por título, descripción, nota, planta, tipo..." class="form-control" style="width:100%;">
+                        <div class="form-group" style="flex: 2; min-width: 240px;">
+                            <input type="text" id="cards-search-input" placeholder="🔍 Buscar por título, #ID, descripción, cliente, planta, relación..." class="form-control" style="width:100%;">
                         </div>
-                        <div class="form-group" style="min-width: 120px;">
+                        <div class="form-group" style="min-width: 135px; display: none;">
                             <select id="cards-filter-type" class="form-control" style="width:100%;">
                                 <option value="all">Todos los Tipos</option>
                                 <option value="trabajo">💼 Trabajos</option>
-                                <option value="actividad">📌 Actividades</option>
                                 <option value="tarea">📝 Gestiones</option>
+                                <option value="actividad">📌 Actividades</option>
                             </select>
                         </div>
-                        <div class="form-group" style="min-width: 120px;">
+                        <div class="form-group" style="min-width: 155px;">
+                            <select id="cards-filter-relation" class="form-control" style="width:100%;" title="Filtrar por Relaciones Ascendentes o Descendentes">
+                                <option value="all">🔗 Todas las Relaciones</option>
+                                <option value="has_asc">⬆️ Con Relación Ascendente</option>
+                                <option value="has_desc">⬇️ Con Relación Descendente</option>
+                                <option value="has_any">↕️ Con Alguna Relación</option>
+                                <option value="independent">🔓 Sin Relaciones (Indep.)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 140px;">
                             <select id="cards-filter-state" class="form-control" style="width:100%;">
                                 <option value="all">Todos los Estados</option>
-                                <option value="Pendiente">Pendiente</option>
-                                <option value="Seguimiento">Seguimiento</option>
-                                <option value="Completada">Completada / Completado</option>
+                                <option value="Pendiente">⏳ Pendientes / Activos</option>
                                 <option value="Planificado">Planificado</option>
+                                <option value="En Progreso">En Progreso</option>
+                                <option value="Seguimiento">Seguimiento</option>
+                                <option value="Completada">✓ Completados</option>
+                                <option value="Cancelado">Cancelado</option>
                             </select>
                         </div>
-                        <div class="form-group" style="min-width: 120px;">
+                        <div class="form-group" style="min-width: 125px;">
                             <select id="cards-filter-planta" class="form-control" style="width:100%;">
                                 <option value="all">Todas las Plantas</option>
                                 <option value="9901">9901</option>
@@ -191,11 +218,34 @@
                                 <option value="All">All</option>
                             </select>
                         </div>
+                        <div class="form-group" style="min-width: 135px;">
+                            <select id="cards-filter-importancia" class="form-control" style="width:100%;">
+                                <option value="all">Toda Importancia</option>
+                                <option value="Prioritario">🔴 Prioritario / Alta</option>
+                                <option value="Importante">🟡 Importante / Media</option>
+                                <option value="Estratégico">🔵 Estratégico / Baja</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 135px;">
+                            <select id="cards-sort-by" class="form-control" style="width:100%;">
+                                <option value="recent">Más recientes</option>
+                                <option value="oldest">Más antiguos</option>
+                                <option value="titulo">Por Título (A-Z)</option>
+                                <option value="estado">Por Estado</option>
+                                <option value="importancia">Por Importancia</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="cards-summary-bar" style="font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0 0.2rem;">
-                        <span id="cards-counter-text">Cargando tarjetas...</span>
+
+                    <div class="cards-summary-bar" style="font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; margin-bottom: 0.25rem; padding: 0 0.2rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <span id="cards-counter-text">Cargando listado...</span>
+                        <div class="relations-legend" style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.72rem;">
+                            <span><strong style="color: #0284c7;">⬆️ Ascendente:</strong> Entidad Padre (Trabajo / Gestión)</span>
+                            <span><strong style="color: #059669;">⬇️ Descendente:</strong> Sub-elementos asociados (Gestiones / Actividades)</span>
+                        </div>
                     </div>
-                    <div class="cards-search-grid" id="cards-search-grid">
+
+                    <div class="rect-cards-list" id="cards-search-grid">
                         <!-- Loaded dynamically -->
                     </div>
                 </div>
@@ -615,6 +665,6 @@
     </div>
 
     <!-- Cargar archivo Javascript -->
-    <script src="/static/js/app.js?v=35"></script>
+    <script src="/static/js/app.js?v=36"></script>
 </body>
 </html>
